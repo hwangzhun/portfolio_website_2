@@ -13,14 +13,13 @@ ADMIN_PASSWORD=change-me npm run dev
 
 ## Docker 部署
 
-复制生产环境模板并设置强密码：
+`compose.yaml` 已包含部署所需的全部环境变量，并直接使用 Docker Hub 镜像。部署前至少将 `ADMIN_PASSWORD` 改为强密码；如果需要修改宿主机端口，将 `8787:8787` 左侧的端口改掉即可。
 
 ```bash
-cp .env.production.example .env
-docker compose up -d --build
+docker compose up -d
 ```
 
-站点默认监听宿主机 `8787` 端口。修改 `.env` 中的 `HOST_PORT` 后重新执行 `docker compose up -d` 即可调整映射端口。由宿主机的 Nginx、Caddy 或云负载均衡将 HTTPS 流量反向代理到该端口；应用本身只提供 HTTP。
+站点默认监听宿主机 `8787` 端口。由 1Panel、Nginx、Caddy 或云负载均衡将 HTTPS 流量反向代理到该端口；应用本身只提供 HTTP。
 
 运行数据位于 Docker 命名卷 `portfolio_data`：SQLite 主库、WAL/SHM 文件和本地上传目录均在其中。不要把数据库或上传文件写进镜像，也不要在升级时使用会删除卷的 `docker compose down -v`。
 
@@ -42,8 +41,8 @@ docker run --rm -v portfolio_website_portfolio_data:/data -v "$PWD":/backup busy
 docker compose start
 ```
 
-若 Compose 项目名不同，请将上述 `portfolio_website_portfolio_data` 替换为 `docker volume ls` 中实际的卷名。升级镜像使用 `docker compose up -d --build`；该操作会重建容器但保留数据卷。
+若 Compose 项目名不同，请将上述 `portfolio_website_portfolio_data` 替换为 `docker volume ls` 中实际的卷名。升级时使用 `docker compose pull && docker compose up -d`；该操作会更新容器但保留数据卷。
 
 ## 媒体存储
 
-默认上传图片保存到持久化卷，原图与 WebP 派生图都会保留。填写 `.env` 中的腾讯云 COS 参数后，可以在后台切换新上传媒体到 COS；SQLite 与 CMS 内容仍保留在 Docker 卷中。
+默认上传图片保存到持久化卷，原图与 WebP 派生图都会保留。填写 `compose.yaml` 中的腾讯云 COS 参数后，可以在后台切换新上传媒体到 COS；SQLite 与 CMS 内容仍保留在 Docker 卷中。

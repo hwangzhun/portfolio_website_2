@@ -2,7 +2,6 @@
 .github
 .env
 .env.*
-!.env.production.example
 server/.env
 node_modules
 dist
