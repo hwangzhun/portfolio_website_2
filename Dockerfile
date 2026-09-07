@@ -16,7 +16,6 @@ COPY --from=dependencies /app/node_modules ./node_modules
 COPY package.json ./
 COPY index.html video.html ./
 COPY assets ./assets
-COPY language ./language
 COPY server ./server
 
 RUN mkdir -p /app/data/uploads && chown -R node:node /app
