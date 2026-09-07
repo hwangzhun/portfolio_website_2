@@ -1,0 +1,1631 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Cayson CMS</title>
+    <style>
+      :root {
+        --ink: #141413;
+        --canvas: #f0eee6;
+        --paper: #faf9f5;
+        --muted: #87867f;
+        --line: #cccbc8;
+        --oat: #e3dacc;
+        --manilla: #f5e3c7;
+        --clay: #d97757;
+        --clay2: #c6613f;
+        --sans: Inter, system-ui, -apple-system, "PingFang SC", sans-serif;
+        --serif: Georgia, "Songti SC", serif;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html {
+        scroll-behavior: smooth;
+      }
+      body {
+        margin: 0;
+        color: var(--ink);
+        background: var(--canvas);
+        font: 16px/1.45 var(--sans);
+      }
+      button,
+      input,
+      textarea,
+      select {
+        font: inherit;
+      }
+      button {
+        cursor: pointer;
+      }
+      .hidden {
+        display: none !important;
+      }
+      .login-wrap {
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        padding: 24px;
+      }
+      .login-card {
+        width: min(480px, 100%);
+        background: var(--manilla);
+        border-radius: 24px;
+        padding: 48px;
+      }
+      .mark {
+        font-weight: 750;
+        font-size: 12px;
+        letter-spacing: 0.02em;
+      }
+      .mark span {
+        display: block;
+        color: var(--muted);
+        font-size: 10px;
+        font-weight: 500;
+        margin-top: 5px;
+      }
+      .login-card h1 {
+        font: 400 44px/1.05 var(--serif);
+        margin: 60px 0 10px;
+      }
+      .lead {
+        font: 18px/1.5 var(--serif);
+        margin: 0 0 28px;
+      }
+      .field {
+        display: grid;
+        gap: 7px;
+        margin-bottom: 16px;
+      }
+      .field label,
+      .field-label {
+        font-size: 12px;
+        font-weight: 650;
+      }
+      .field small {
+        color: var(--muted);
+        font-size: 11px;
+      }
+      input,
+      textarea,
+      select {
+        width: 100%;
+        border: 1px solid var(--line);
+        background: var(--paper);
+        color: var(--ink);
+        padding: 12px 13px;
+        border-radius: 12px;
+        outline: 0;
+      }
+      input:focus,
+      textarea:focus,
+      select:focus {
+        border-color: var(--ink);
+      }
+      textarea {
+        min-height: 104px;
+        resize: vertical;
+      }
+      .btn {
+        border: 1px solid var(--line);
+        background: var(--paper);
+        color: var(--ink);
+        border-radius: 0 0 8px 8px;
+        padding: 11px 17px;
+        font-weight: 650;
+      }
+      .btn:hover {
+        border-color: var(--ink);
+      }
+      .btn-primary {
+        background: var(--clay);
+        color: white;
+        border-color: var(--clay);
+      }
+      .btn-primary:hover {
+        background: var(--clay2);
+        border-color: var(--clay2);
+      }
+      .btn-ghost {
+        background: transparent;
+      }
+      .btn-danger {
+        color: #9b3e2c;
+      }
+      .btn-sm {
+        padding: 7px 10px;
+        font-size: 12px;
+      }
+      .login-card .btn {
+        width: 100%;
+        margin-top: 6px;
+      }
+      .status {
+        min-height: 22px;
+        margin-top: 12px;
+        color: #8b3827;
+        font-size: 13px;
+      }
+      .shell {
+        min-height: 100vh;
+        display: grid;
+        grid-template-columns: 240px 1fr;
+      }
+      .sidebar {
+        position: sticky;
+        top: 0;
+        height: 100vh;
+        background: var(--ink);
+        color: var(--paper);
+        padding: 28px 20px;
+        display: flex;
+        flex-direction: column;
+      }
+      .sidebar .mark {
+        padding: 0 10px 30px;
+      }
+      .sidebar .mark span {
+        color: #b0aea5;
+      }
+      .nav-group {
+        display: grid;
+        gap: 2px;
+      }
+      .nav-button {
+        border: 0;
+        background: transparent;
+        color: #b0aea5;
+        text-align: left;
+        border-radius: 8px;
+        padding: 10px 12px;
+        font-size: 13px;
+      }
+      .nav-button:hover,
+      .nav-button.active {
+        background: #2b2b29;
+        color: var(--paper);
+      }
+      .sidebar-bottom {
+        margin-top: auto;
+        border-top: 1px solid #3d3d3a;
+        padding-top: 18px;
+        display: grid;
+        gap: 5px;
+      }
+      .main {
+        min-width: 0;
+      }
+      .topbar {
+        position: sticky;
+        top: 0;
+        z-index: 5;
+        height: 72px;
+        background: rgba(240, 238, 230, 0.96);
+        border-bottom: 1px solid var(--line);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 36px;
+        gap: 20px;
+      }
+      .save-state {
+        font-size: 12px;
+        color: var(--muted);
+      }
+      .save-state.dirty {
+        color: #9b3e2c;
+      }
+      .top-actions {
+        display: flex;
+        gap: 8px;
+      }
+      .content {
+        max-width: 1080px;
+        padding: 48px 36px 100px;
+      }
+      .view {
+        display: none;
+      }
+      .view.active {
+        display: block;
+      }
+      .eyebrow {
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.05em;
+        margin: 0 0 10px;
+      }
+      .page-title {
+        font: 400 clamp(38px, 5vw, 58px) / 1.05 var(--serif);
+        margin: 0 0 12px;
+      }
+      .page-description {
+        font: 18px/1.5 var(--serif);
+        max-width: 680px;
+        margin: 0 0 38px;
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 18px;
+      }
+      .stats {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+      }
+      .card {
+        background: var(--paper);
+        border: 1px solid var(--line);
+        border-radius: 24px;
+        padding: 24px;
+      }
+      .stat strong {
+        display: block;
+        font: 400 38px var(--serif);
+      }
+      .stat span {
+        font-size: 12px;
+        color: var(--muted);
+      }
+      .card h2 {
+        font: 600 20px var(--sans);
+        margin: 0 0 18px;
+      }
+      .card h3 {
+        font: 600 16px var(--sans);
+        margin: 0;
+      }
+      .section-card {
+        margin-bottom: 18px;
+      }
+      .form-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0 16px;
+      }
+      .span-2 {
+        grid-column: 1/-1;
+      }
+      .repeat-list {
+        display: grid;
+        gap: 14px;
+      }
+      .repeat-item {
+        background: var(--paper);
+        border: 1px solid var(--line);
+        border-radius: 24px;
+        padding: 22px;
+      }
+      .item-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 18px;
+      }
+      .item-actions {
+        display: flex;
+        gap: 5px;
+      }
+      .add-row {
+        margin-top: 16px;
+      }
+      .check {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 12px;
+      }
+      .check input {
+        width: auto;
+      }
+      .media-toolbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        margin-bottom: 20px;
+      }
+      .dropzone {
+        border: 1px dashed var(--muted);
+        background: var(--manilla);
+        border-radius: 24px;
+        padding: 34px;
+        text-align: center;
+        margin-bottom: 22px;
+      }
+      .dropzone.drag {
+        border-color: var(--clay);
+        background: var(--oat);
+      }
+      .dropzone input {
+        display: none;
+      }
+      .media-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 14px;
+      }
+      .media-card {
+        background: var(--paper);
+        border: 1px solid var(--line);
+        border-radius: 18px;
+        overflow: hidden;
+      }
+      .media-card img {
+        width: 100%;
+        aspect-ratio: 4/3;
+        object-fit: cover;
+        display: block;
+        background: var(--oat);
+      }
+      .media-info {
+        padding: 12px;
+      }
+      .media-name {
+        font-size: 12px;
+        font-weight: 650;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .media-meta {
+        font-size: 10px;
+        color: var(--muted);
+        margin: 4px 0 10px;
+      }
+      .media-actions {
+        display: flex;
+        gap: 5px;
+      }
+      .notice {
+        background: var(--manilla);
+        border-radius: 18px;
+        padding: 18px;
+        font: 16px/1.5 var(--serif);
+        margin-bottom: 20px;
+      }
+      .revision {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 12px 0;
+        border-bottom: 1px solid var(--line);
+        font-size: 13px;
+      }
+      .storage-choice {
+        display: flex;
+        gap: 12px;
+      }
+      .storage-option {
+        flex: 1;
+        border: 1px solid var(--line);
+        border-radius: 18px;
+        padding: 18px;
+      }
+      .storage-option label {
+        font-weight: 700;
+      }
+      .storage-option input {
+        width: auto;
+      }
+      .muted {
+        color: var(--muted);
+      }
+      .toast {
+        position: fixed;
+        right: 24px;
+        bottom: 24px;
+        z-index: 20;
+        background: var(--ink);
+        color: var(--paper);
+        padding: 13px 18px;
+        border-radius: 12px;
+        font-size: 13px;
+      }
+      .cover-row {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: 8px;
+      }
+      .thumb {
+        width: 100%;
+        max-height: 150px;
+        object-fit: cover;
+        border-radius: 12px;
+        margin-top: 8px;
+        display: none;
+      }
+      .thumb[src] {
+        display: block;
+      }
+      .mobile-nav {
+        display: none;
+      }
+      @media (max-width: 850px) {
+        .shell {
+          grid-template-columns: 1fr;
+        }
+        .sidebar {
+          display: none;
+        }
+        .topbar {
+          padding: 0 18px;
+        }
+        .content {
+          padding: 32px 18px 90px;
+        }
+        .mobile-nav {
+          display: flex;
+          overflow: auto;
+          gap: 4px;
+          border-bottom: 1px solid var(--line);
+          padding: 8px 14px;
+        }
+        .mobile-nav .nav-button {
+          white-space: nowrap;
+        }
+        .stats,
+        .media-grid {
+          grid-template-columns: repeat(2, 1fr);
+        }
+      }
+      @media (max-width: 560px) {
+        .grid,
+        .form-grid,
+        .stats {
+          grid-template-columns: 1fr;
+        }
+        .span-2 {
+          grid-column: auto;
+        }
+        .media-grid {
+          grid-template-columns: 1fr;
+        }
+        .topbar {
+          height: auto;
+          align-items: flex-start;
+          padding: 12px 18px;
+        }
+        .top-actions {
+          flex-wrap: wrap;
+          justify-content: flex-end;
+        }
+        .content {
+          padding-top: 28px;
+        }
+        .login-card {
+          padding: 30px;
+        }
+        .storage-choice {
+          display: grid;
+        }
+      }
+      .revision-list {
+        display: grid;
+        gap: 12px;
+      }
+      .revision-card {
+        display: grid;
+        grid-template-columns: 72px 1fr auto;
+        gap: 18px;
+        align-items: center;
+        border: 1px solid var(--line);
+        border-radius: 18px;
+        padding: 16px;
+        background: var(--canvas);
+      }
+      .revision-number {
+        font: 400 24px var(--serif);
+      }
+      .revision-title {
+        font-weight: 700;
+        margin-bottom: 4px;
+      }
+      .revision-meta,
+      .revision-counts {
+        font-size: 11px;
+        color: var(--muted);
+      }
+      .revision-counts {
+        margin-top: 7px;
+      }
+      .revision-hash {
+        margin-top: 7px;
+        font:
+          600 10px/1.4 ui-monospace,
+          SFMono-Regular,
+          Consolas,
+          monospace;
+        color: var(--muted);
+      }
+      .status-badge {
+        display: inline-block;
+        margin-left: 6px;
+        padding: 2px 6px;
+        border-radius: 999px;
+        background: var(--oat);
+        color: var(--ink);
+        font: 600 9px var(--sans);
+      }
+      .revision-actions {
+        display: flex;
+        gap: 6px;
+      }
+      .log-list {
+        display: grid;
+        gap: 1px;
+        overflow: hidden;
+        border: 1px solid var(--line);
+        border-radius: 18px;
+        background: var(--line);
+      }
+      .log-row {
+        display: grid;
+        grid-template-columns: 150px 130px minmax(0, 1fr) 130px;
+        gap: 16px;
+        align-items: start;
+        padding: 14px 16px;
+        background: var(--paper);
+        font-size: 12px;
+      }
+      .log-action {
+        font-weight: 700;
+      }
+      .log-detail {
+        overflow-wrap: anywhere;
+      }
+      .log-meta {
+        color: var(--muted);
+        font-size: 10px;
+      }
+      @media (max-width: 560px) {
+        .revision-card {
+          grid-template-columns: 56px 1fr;
+        }
+        .revision-actions {
+          grid-column: 1/-1;
+        }
+        .log-row {
+          grid-template-columns: 1fr;
+          gap: 5px;
+        }
+      }
+      @media (min-width: 561px) and (max-width: 850px) {
+        .log-row {
+          grid-template-columns: 120px 100px minmax(0, 1fr) 110px;
+          gap: 10px;
+        }
+      }
+      .btn,
+      .nav-button,
+      .media-card,
+      .storage-option,
+      .dropzone,
+      input,
+      textarea,
+      select {
+        transition-property:
+          transform, opacity, background-color, border-color, box-shadow, color;
+        transition-duration: 150ms;
+        transition-timing-function: cubic-bezier(0.2, 0, 0, 1);
+      }
+      .btn:active,
+      .nav-button:active {
+        transform: scale(0.96);
+      }
+      .btn:focus-visible,
+      .nav-button:focus-visible,
+      input:focus-visible,
+      textarea:focus-visible,
+      select:focus-visible {
+        outline: 2px solid var(--clay);
+        outline-offset: 3px;
+      }
+      .nav-button {
+        position: relative;
+      }
+      .nav-button.active::before {
+        content: "";
+        position: absolute;
+        left: 3px;
+        top: 50%;
+        width: 3px;
+        height: 16px;
+        border-radius: 3px;
+        background: var(--paper);
+        opacity: 0;
+        transform: translateY(-50%) scaleY(0.25);
+        filter: blur(4px);
+        transition:
+          opacity 150ms cubic-bezier(0.2, 0, 0, 1),
+          transform 150ms cubic-bezier(0.2, 0, 0, 1),
+          filter 150ms cubic-bezier(0.2, 0, 0, 1);
+      }
+      .nav-button.active::before {
+        opacity: 1;
+        transform: translateY(-50%) scaleY(1);
+        filter: blur(0);
+      }
+      .card,
+      .repeat-item,
+      .media-card,
+      .storage-option {
+        transition-property: transform, box-shadow, border-color;
+        transition-duration: 280ms;
+        transition-timing-function: cubic-bezier(0.2, 0, 0, 1);
+      }
+      .media-card:hover,
+      .storage-option:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 14px 28px rgba(20, 20, 19, 0.1);
+        border-color: var(--ink);
+      }
+      .view.active {
+        animation: view-enter 280ms cubic-bezier(0.2, 0, 0, 1) both;
+      }
+      .toast {
+        display: block;
+        opacity: 0;
+        transform: translateY(8px);
+        pointer-events: none;
+        transition:
+          opacity 180ms cubic-bezier(0.2, 0, 0, 1),
+          transform 180ms cubic-bezier(0.2, 0, 0, 1);
+      }
+      .toast.is-visible {
+        opacity: 1;
+        transform: translateY(0);
+      }
+      @keyframes view-enter {
+        from {
+          opacity: 0;
+          transform: translateY(12px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        *,
+        *::before,
+        *::after {
+          animation-duration: 0.01ms !important;
+          transition-duration: 0.01ms !important;
+          scroll-behavior: auto !important;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="login" class="login-wrap">
+      <section class="login-card">
+        <div class="mark">CAYSON CMS<span>PORTFOLIO CONTROL ROOM</span></div>
+        <h1>欢迎回来。</h1>
+        <p class="lead">登录后编辑网站内容、整理作品与发布新的版本。</p>
+        <div class="field">
+          <label for="username">用户名</label
+          ><input id="username" value="admin" autocomplete="username" />
+        </div>
+        <div class="field">
+          <label for="password">密码</label
+          ><input
+            id="password"
+            type="password"
+            autocomplete="current-password"
+          />
+        </div>
+        <button id="loginBtn" class="btn btn-primary">登录控制台</button>
+        <div id="loginStatus" class="status" role="status"></div>
+      </section>
+    </div>
+    <div id="cms" class="shell hidden">
+      <aside class="sidebar">
+        <div class="mark">CAYSON CMS<span>PORTFOLIO CONTROL ROOM</span></div>
+        <nav class="nav-group" aria-label="后台导航">
+          <button class="nav-button active" data-view="overview">概览</button
+          ><button class="nav-button" data-view="profile">站点信息</button
+          ><button class="nav-button" data-view="hero">首屏</button
+          ><button class="nav-button" data-view="about">关于</button
+          ><button class="nav-button" data-view="experiences">工作经历</button
+          ><button class="nav-button" data-view="cases">项目经历</button
+          ><button class="nav-button" data-view="projects">精选作品</button
+          ><button class="nav-button" data-view="media">媒体库</button
+          ><button class="nav-button" data-view="settings">设置与备份</button
+          ><button class="nav-button" data-view="logs">操作日志</button>
+        </nav>
+        <div class="sidebar-bottom">
+          <button id="previewSide" class="nav-button">预览草稿 ↗</button
+          ><button id="logoutBtn" class="nav-button">退出登录</button>
+        </div>
+      </aside>
+      <main class="main">
+        <div class="mobile-nav"></div>
+        <header class="topbar">
+          <span id="saveState" class="save-state">所有更改已保存</span>
+          <div class="top-actions">
+            <button id="previewBtn" class="btn btn-sm">预览</button
+            ><button id="saveBtn" class="btn btn-sm">保存草稿</button
+            ><button id="publishBtn" class="btn btn-primary btn-sm">
+              发布网站
+            </button>
+          </div>
+        </header>
+        <div class="content">
+          <section class="view active" data-panel="overview">
+            <p class="eyebrow">DASHBOARD</p>
+            <h1 class="page-title">内容概览</h1>
+            <p class="page-description">
+              管理你的作品档案。编辑会先进入草稿，确认后再发布到前台。
+            </p>
+            <div id="stats" class="grid stats"></div>
+            <div class="grid" style="margin-top: 18px">
+              <div class="card">
+                <h2>发布状态</h2>
+                <p id="dates" class="muted"></p>
+                <button class="btn" data-go="profile">继续编辑 →</button>
+              </div>
+              <div class="card">
+                <h2>最近版本</h2>
+                <div id="revisionPreview"></div>
+              </div>
+            </div>
+          </section>
+          <section class="view" data-panel="profile">
+            <p class="eyebrow">SITE IDENTITY</p>
+            <h1 class="page-title">站点信息</h1>
+            <p class="page-description">
+              管理 About 区域的头像、职业资料、联系方式和社交入口。
+            </p>
+            <div class="card section-card">
+              <h2>个人资料</h2>
+              <div class="form-grid">
+                <div class="field">
+                  <label>站点名称</label><input data-bind="profile.siteName" />
+                </div>
+                <div class="field">
+                  <label>中文姓名</label><input data-bind="profile.name" />
+                </div>
+                <div class="field">
+                  <label>英文名</label><input data-bind="profile.englishName" />
+                </div>
+                <div class="field">
+                  <label>职业抬头</label
+                  ><input
+                    data-bind="profile.title"
+                    placeholder="例如：摄影师 / 剪辑师"
+                  />
+                </div>
+                <div class="field">
+                  <label>邮箱</label
+                  ><input type="email" data-bind="profile.email" />
+                </div>
+                <div class="field">
+                  <label>电话</label><input data-bind="profile.phone" />
+                </div>
+                <div class="field">
+                  <label>所在地</label><input data-bind="profile.location" />
+                </div>
+                <div class="field span-2">
+                  <label>个人头像</label>
+                  <div class="cover-row">
+                    <input data-bind="profile.avatarUrl" /><button
+                      class="btn btn-sm"
+                      data-pick="profile.avatarUrl"
+                    >
+                      从媒体库选择
+                    </button>
+                  </div>
+                  <img
+                    class="thumb"
+                    data-thumb="profile.avatarUrl"
+                    alt="头像预览"
+                  />
+                </div>
+                <div class="field span-2">
+                  <label>页脚邀请语</label><input data-bind="footer.prompt" />
+                </div>
+                <div class="field span-2">
+                  <label>版权信息</label><input data-bind="footer.copyright" />
+                </div>
+              </div>
+            </div>
+            <div class="card section-card">
+              <h2>社交媒体</h2>
+              <div id="socialList" class="repeat-list"></div>
+              <button class="btn add-row" data-add="socials">
+                ＋ 添加社交媒体
+              </button>
+            </div>
+          </section>
+          <section class="view" data-panel="hero">
+            <p class="eyebrow">HERO STORY</p>
+            <h1 class="page-title">首屏内容</h1>
+            <p class="page-description">
+              设置访客第一眼看到的标题、引言与特色卡片。
+            </p>
+            <div class="card section-card">
+              <div class="form-grid">
+                <div class="field span-2">
+                  <label>眉题</label><input data-bind="hero.eyebrow" />
+                </div>
+                <div class="field">
+                  <label>主标题</label><input data-bind="hero.title" />
+                </div>
+                <div class="field">
+                  <label>带下划线标题</label
+                  ><input data-bind="hero.linkedTitle" />
+                </div>
+                <div class="field span-2">
+                  <label>介绍文字</label
+                  ><textarea data-bind="hero.description"></textarea>
+                </div>
+              </div>
+            </div>
+            <div class="card">
+              <h2>特色卡片</h2>
+              <div class="form-grid">
+                <div class="field">
+                  <label>眉题</label><input data-bind="hero.featureEyebrow" />
+                </div>
+                <div class="field">
+                  <label>标题</label><input data-bind="hero.featureTitle" />
+                </div>
+                <div class="field span-2">
+                  <label>描述</label
+                  ><textarea data-bind="hero.featureDescription"></textarea>
+                </div>
+                <div class="field span-2">
+                  <label>插画</label>
+                  <div class="cover-row">
+                    <input data-bind="hero.featureImage" /><button
+                      class="btn btn-sm"
+                      data-pick="hero.featureImage"
+                    >
+                      从媒体库选择
+                    </button>
+                  </div>
+                  <img
+                    class="thumb"
+                    data-thumb="hero.featureImage"
+                    alt="特色插画预览"
+                  />
+                </div>
+              </div>
+            </div>
+          </section>
+          <section class="view" data-panel="about">
+            <p class="eyebrow">ABOUT THE PRACTICE</p>
+            <h1 class="page-title">关于</h1>
+            <p class="page-description">
+              讲清楚你的工作方式与创作判断，并设置前台的软件能力区。
+            </p>
+            <div class="card section-card">
+              <div class="field">
+                <label>关于区域眉题</label><input data-bind="about.eyebrow" />
+              </div>
+              <div class="field">
+                <label>关于区域标题</label><input data-bind="about.title" />
+              </div>
+              <div class="field">
+                <label>关于正文</label
+                ><textarea data-bind="about.description"></textarea>
+              </div>
+            </div>
+            <div class="card section-card">
+              <h2>软件能力区</h2>
+              <div class="field">
+                <label>区域眉题</label
+                ><input data-bind="sections.toolsEyebrow" />
+              </div>
+              <div id="softwareList" class="repeat-list"></div>
+              <button class="btn add-row" data-add="software">
+                ＋ 添加软件
+              </button>
+            </div>
+          </section>
+          <section class="view" data-panel="experiences">
+            <p class="eyebrow">WORK HISTORY</p>
+            <h1 class="page-title">工作经历</h1>
+            <p class="page-description">记录岗位、职责和可量化的工作成就。</p>
+            <div class="card section-card">
+              <h2>栏目标题</h2>
+              <div class="form-grid">
+                <div class="field">
+                  <label>整个履历区域眉题</label
+                  ><input data-bind="sections.recordsEyebrow" />
+                </div>
+                <div class="field">
+                  <label>整个履历区域标题</label
+                  ><input data-bind="sections.recordsTitle" />
+                </div>
+                <div class="field span-2">
+                  <label>工作经历标题</label
+                  ><input data-bind="sections.experienceTitle" />
+                </div>
+              </div>
+            </div>
+            <div id="experienceList" class="repeat-list"></div>
+            <button class="btn add-row" data-add="experiences">
+              ＋ 添加工作经历
+            </button>
+          </section>
+          <section class="view" data-panel="cases">
+            <p class="eyebrow">CASE STUDIES</p>
+            <h1 class="page-title">项目经历</h1>
+            <p class="page-description">
+              整理重点项目中的角色、执行内容与结果。
+            </p>
+            <div class="card section-card">
+              <h2>栏目标题</h2>
+              <div class="field">
+                <label>项目经历标题</label
+                ><input data-bind="sections.caseStudyTitle" />
+              </div>
+            </div>
+            <div id="caseList" class="repeat-list"></div>
+            <button class="btn add-row" data-add="caseStudies">
+              ＋ 添加项目经历
+            </button>
+          </section>
+          <section class="view" data-panel="projects">
+            <p class="eyebrow">SELECTED ARCHIVE</p>
+            <h1 class="page-title">精选作品</h1>
+            <p class="page-description">
+              管理前台作品卡片、封面、链接和展示顺序。
+            </p>
+            <div class="card section-card">
+              <h2>栏目标题</h2>
+              <div class="form-grid">
+                <div class="field">
+                  <label>作品区域眉题</label
+                  ><input data-bind="sections.worksEyebrow" />
+                </div>
+                <div class="field">
+                  <label>作品区域标题</label
+                  ><input data-bind="sections.worksTitle" />
+                </div>
+              </div>
+            </div>
+            <div id="projectList" class="repeat-list"></div>
+            <button class="btn add-row" data-add="projects">＋ 添加作品</button>
+          </section>
+          <section class="view" data-panel="media">
+            <p class="eyebrow">MEDIA LIBRARY</p>
+            <h1 class="page-title">媒体库</h1>
+            <p class="page-description">
+              上传图片后会保留原图，并自动生成适合网页的 WebP。
+            </p>
+            <div id="pickerNotice" class="notice hidden">
+              请选择一张图片用于：<strong id="pickerTarget"></strong>
+              <button id="cancelPicker" class="btn btn-sm">取消</button>
+            </div>
+            <div id="dropzone" class="dropzone">
+              <input
+                id="fileInput"
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+              />
+              <p>
+                <strong>拖放图片到这里</strong><br /><span class="muted"
+                  >或点击选择文件 · 最大 12MB</span
+                >
+              </p>
+              <button id="uploadChoose" class="btn">选择图片</button>
+            </div>
+            <div class="media-toolbar">
+              <strong id="mediaCount"></strong
+              ><span id="uploadStatus" class="muted"></span>
+            </div>
+            <div id="mediaGrid" class="media-grid"></div>
+          </section>
+          <section class="view" data-panel="settings">
+            <p class="eyebrow">SETTINGS & BACKUP</p>
+            <h1 class="page-title">设置与备份</h1>
+            <p class="page-description">
+              选择新图片的存储位置，管理内容版本并导出完整备份。
+            </p>
+            <div class="card section-card">
+              <h2>图片存储</h2>
+              <div id="storageChoices" class="storage-choice"></div>
+            </div>
+            <div class="card section-card">
+              <h2>版本历史</h2>
+              <div id="revisions"></div>
+            </div>
+            <div class="card">
+              <h2>备份</h2>
+              <p class="muted">
+                导出草稿、已发布内容、版本记录、媒体索引与旧视频记录。
+              </p>
+              <a id="exportBtn"><button class="btn">导出 JSON 备份</button></a>
+            </div>
+          </section>
+          <section class="view" data-panel="logs">
+            <p class="eyebrow">AUDIT LOG</p>
+            <h1 class="page-title">操作日志</h1>
+            <p class="page-description">
+              查看后台关键操作、操作者、来源地址与执行时间，最近记录优先显示。
+            </p>
+            <div id="adminLogs"></div>
+          </section>
+        </div>
+      </main>
+    </div>
+    <div id="toast" class="toast" role="status"></div>
+    <script>
+      const $ = (s) => document.querySelector(s),
+        $$ = (s) => [...document.querySelectorAll(s)];
+      const api = "";
+      let payload = null,
+        content = null,
+        dirty = false,
+        picker = null;
+      async function request(url, options = {}) {
+        const config = { credentials: "include", ...options };
+        if (config.body && !(config.body instanceof FormData)) {
+          config.headers = {
+            "Content-Type": "application/json",
+            ...(config.headers || {}),
+          };
+          if (typeof config.body !== "string")
+            config.body = JSON.stringify(config.body);
+        }
+        const response = await fetch(api + url, config);
+        if (!response.ok) {
+          const body = await response.json().catch(() => ({}));
+          throw new Error(body.error || `请求失败 ${response.status}`);
+        }
+        return response.status === 204 ? null : response.json();
+      }
+      const esc = (v) =>
+        String(v ?? "").replace(
+          /[&<>'"]/g,
+          (c) =>
+            ({
+              "&": "&amp;",
+              "<": "&lt;",
+              ">": "&gt;",
+              "'": "&#39;",
+              '"': "&quot;",
+            })[c],
+        );
+      function getPath(path) {
+        return path.split(".").reduce((value, key) => value?.[key], content);
+      }
+      function setPath(path, value) {
+        const keys = path.split(".");
+        let node = content;
+        keys.slice(0, -1).forEach((key) => (node = node[key]));
+        node[keys.at(-1)] = value;
+        markDirty();
+      }
+      function markDirty() {
+        dirty = true;
+        $("#saveState").textContent = "有尚未保存的更改";
+        $("#saveState").classList.add("dirty");
+      }
+      function markSaved(text = "草稿已保存") {
+        dirty = false;
+        $("#saveState").textContent = text;
+        $("#saveState").classList.remove("dirty");
+      }
+      function toast(message) {
+        const notice = $("#toast");
+        notice.textContent = message;
+        notice.classList.add("is-visible");
+        clearTimeout(notice._timer);
+        notice._timer = setTimeout(
+          () => notice.classList.remove("is-visible"),
+          2600,
+        );
+      }
+      function showView(name) {
+        $$(".view").forEach((p) =>
+          p.classList.toggle("active", p.dataset.panel === name),
+        );
+        $$("[data-view]").forEach((b) =>
+          b.classList.toggle("active", b.dataset.view === name),
+        );
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      }
+      function hydrateFields() {
+        $$("[data-bind]").forEach((input) => {
+          input.value = getPath(input.dataset.bind) || "";
+          input.oninput = () => {
+            setPath(input.dataset.bind, input.value);
+            const thumb = $(`[data-thumb="${input.dataset.bind}"]`);
+            if (thumb) thumb.src = input.value;
+          };
+        });
+        $$("[data-thumb]").forEach(
+          (img) => (img.src = getPath(img.dataset.thumb) || ""),
+        );
+      }
+      function itemButtons(type, index) {
+        return `<div class="item-actions"><button class="btn btn-sm" data-move="${type}:${index}:-1" aria-label="上移">↑</button><button class="btn btn-sm" data-move="${type}:${index}:1" aria-label="下移">↓</button><button class="btn btn-sm btn-danger" data-remove="${type}:${index}">删除</button></div>`;
+      }
+      function renderRepeats() {
+        $("#experienceList").innerHTML = content.experiences
+          .map(
+            (item, i) =>
+              `<article class="repeat-item"><div class="item-head"><h3>${esc(item.company || "未命名工作经历")}</h3>${itemButtons("experiences", i)}</div><div class="form-grid"><div class="field"><label>起始时间</label><input data-item="experiences:${i}:startDate" value="${esc(item.startDate)}" placeholder="例如：2022.03"></div><div class="field"><label>结束时间</label><input data-item="experiences:${i}:endDate" value="${esc(item.endDate)}" placeholder="例如：现在"></div><div class="field span-2"><label>公司</label><input data-item="experiences:${i}:company" value="${esc(item.company)}"></div><div class="field"><label>所在部门</label><input data-item="experiences:${i}:department" value="${esc(item.department)}"></div><div class="field"><label>岗位职称</label><input data-item="experiences:${i}:role" value="${esc(item.role)}"></div><div class="field span-2"><label>工作内容与成就（每行一条）</label><textarea data-details="experiences:${i}">${esc((item.details || []).join("\n"))}</textarea></div><label class="check span-2"><input type="checkbox" data-visible="experiences:${i}" ${item.visible !== false ? "checked" : ""}> 前台显示</label></div></article>`,
+          )
+          .join("");
+        $("#caseList").innerHTML = content.caseStudies
+          .map(
+            (item, i) =>
+              `<article class="repeat-item"><div class="item-head"><h3>${esc(item.title || "未命名项目")}</h3>${itemButtons("caseStudies", i)}</div><div class="form-grid"><div class="field"><label>年份</label><input data-item="caseStudies:${i}:period" value="${esc(item.period)}"></div><div class="field"><label>项目名称</label><input data-item="caseStudies:${i}:title" value="${esc(item.title)}"></div><div class="field span-2"><label>项目角色</label><input data-item="caseStudies:${i}:role" value="${esc(item.role)}"></div><div class="field span-2"><label>项目链接</label><input data-item="caseStudies:${i}:link" value="${esc(item.link)}"></div><div class="field span-2"><label>工作内容与成果（每行一条）</label><textarea data-details="caseStudies:${i}">${esc((item.details || []).join("\n"))}</textarea></div><label class="check span-2"><input type="checkbox" data-visible="caseStudies:${i}" ${item.visible !== false ? "checked" : ""}> 前台显示</label></div></article>`,
+          )
+          .join("");
+        $("#projectList").innerHTML = content.projects
+          .map(
+            (item, i) =>
+              `<article class="repeat-item"><div class="item-head"><div><h3>${esc(item.title || "未命名作品")}</h3><span class="muted">${item.type === "video" ? "站内视频" : "外部照片"}</span></div>${itemButtons("projects", i)}</div><div class="form-grid"><div class="field"><label>作品类型</label><select data-item="projects:${i}:type"><option value="photo" ${item.type === "photo" ? "selected" : ""}>照片 · 跳转外部网站</option><option value="video" ${item.type === "video" ? "selected" : ""}>视频 · 站内详情页</option></select></div><div class="field"><label>标题</label><input data-item="projects:${i}:title" value="${esc(item.title)}"></div><div class="field"><label>分类</label><input data-item="projects:${i}:category" value="${esc(item.category)}"></div><div class="field"><label>年份</label><input data-item="projects:${i}:year" value="${esc(item.year)}"></div><div class="field span-2"><label>职责说明</label><input data-item="projects:${i}:meta" value="${esc(item.meta)}"></div><div class="field span-2"><label>项目介绍</label><textarea data-item="projects:${i}:description" placeholder="介绍项目背景、创作目标或你的工作内容">${esc(item.description)}</textarea></div>${item.type === "video" ? `<div class="field span-2"><label>MP4 / 腾讯 VOD 播放地址</label><input data-item="projects:${i}:videoUrl" value="${esc(item.videoUrl)}" placeholder="https://.../video.mp4"><small>视频会在本站独立详情页中播放。</small></div>` : `<div class="field span-2"><label>照片外部网站地址</label><input data-item="projects:${i}:externalUrl" value="${esc(item.externalUrl)}" placeholder="https://"><small>点击作品后会在新标签页打开。</small></div>`}<div class="field span-2"><label>封面图片</label><div class="cover-row"><input data-item="projects:${i}:coverUrl" value="${esc(item.coverUrl)}"><button class="btn btn-sm" data-pick="projects.${i}.coverUrl">从媒体库选择</button></div>${item.coverUrl ? `<img class="thumb" src="${esc(resolveUrl(item.coverUrl))}" alt="封面预览">` : ""}</div><label class="check"><input type="checkbox" data-boolean="projects:${i}:featured" ${item.featured ? "checked" : ""}> 大卡片展示</label><label class="check"><input type="checkbox" data-boolean="projects:${i}:published" ${item.published !== false ? "checked" : ""}> 发布此作品</label></div></article>`,
+          )
+          .join("");
+        $("#softwareList").innerHTML = content.software
+          .map(
+            (item, i) =>
+              `<article class="repeat-item"><div class="item-head"><h3>${esc(item.name || "未命名软件")}</h3>${itemButtons("software", i)}</div><div class="form-grid"><div class="field"><label>软件名称</label><input data-item="software:${i}:name" value="${esc(item.name)}"></div><div class="field"><label>图标图片</label><div class="cover-row"><input data-item="software:${i}:iconUrl" value="${esc(item.iconUrl)}"><button class="btn btn-sm" data-pick="software.${i}.iconUrl">从媒体库选择</button></div>${item.iconUrl ? `<img class="thumb" src="${esc(resolveUrl(item.iconUrl))}" alt="图标预览">` : ""}</div><label class="check span-2"><input type="checkbox" data-boolean="software:${i}:visible" ${item.visible !== false ? "checked" : ""}> 前台显示</label></div></article>`,
+          )
+          .join("");
+        $("#socialList").innerHTML = content.socials
+          .map(
+            (item, i) =>
+              `<article class="repeat-item"><div class="item-head"><h3>${esc(item.platform || "未命名平台")}</h3>${itemButtons("socials", i)}</div><div class="form-grid"><div class="field"><label>平台名称</label><input data-item="socials:${i}:platform" value="${esc(item.platform)}" placeholder="例如：Instagram"></div><div class="field"><label>跳转地址</label><input data-item="socials:${i}:url" value="${esc(item.url)}" placeholder="https://"></div><label class="check span-2"><input type="checkbox" data-boolean="socials:${i}:visible" ${item.visible !== false ? "checked" : ""}> 前台显示</label></div></article>`,
+          )
+          .join("");
+        bindRepeatEvents();
+      }
+      function bindRepeatEvents() {
+        $$("[data-item]").forEach(
+          (el) =>
+            (el.oninput = () => {
+              const [type, index, key] = el.dataset.item.split(":");
+              content[type][index][key] = el.value;
+              markDirty();
+              if (type === "projects" && key === "type") renderRepeats();
+            }),
+        );
+        $$("[data-details]").forEach(
+          (el) =>
+            (el.oninput = () => {
+              const [type, index] = el.dataset.details.split(":");
+              content[type][index].details = el.value
+                .split("\n")
+                .map((v) => v.trim())
+                .filter(Boolean);
+              markDirty();
+            }),
+        );
+        $$("[data-visible]").forEach(
+          (el) =>
+            (el.onchange = () => {
+              const [type, index] = el.dataset.visible.split(":");
+              content[type][index].visible = el.checked;
+              markDirty();
+            }),
+        );
+        $$("[data-boolean]").forEach(
+          (el) =>
+            (el.onchange = () => {
+              const [type, index, key] = el.dataset.boolean.split(":");
+              content[type][index][key] = el.checked;
+              markDirty();
+            }),
+        );
+        $$("[data-remove]").forEach(
+          (el) =>
+            (el.onclick = () => {
+              const [type, index] = el.dataset.remove.split(":");
+              if (confirm("确认删除这一项？")) {
+                content[type].splice(Number(index), 1);
+                markDirty();
+                renderRepeats();
+              }
+            }),
+        );
+        $$("[data-move]").forEach(
+          (el) =>
+            (el.onclick = () => {
+              const [type, index, delta] = el.dataset.move
+                  .split(":")
+                  .map((v, i) => (i ? Number(v) : v)),
+                target = index + delta;
+              if (target < 0 || target >= content[type].length) return;
+              [content[type][index], content[type][target]] = [
+                content[type][target],
+                content[type][index],
+              ];
+              markDirty();
+              renderRepeats();
+            }),
+        );
+        $$("[data-pick]").forEach(
+          (el) => (el.onclick = () => beginPicker(el.dataset.pick)),
+        );
+      }
+      function addItem(type) {
+        if (type === "experiences")
+          content[type].push({
+            startDate: "",
+            endDate: "",
+            company: "新工作经历",
+            department: "",
+            role: "",
+            details: [],
+            visible: true,
+          });
+        if (type === "caseStudies")
+          content[type].push({
+            period: "",
+            title: "新项目",
+            role: "",
+            link: "",
+            details: [],
+            visible: true,
+          });
+        if (type === "projects")
+          content[type].push({
+            id: crypto.randomUUID(),
+            type: "photo",
+            title: "新作品",
+            category: "照片",
+            year: "",
+            meta: "",
+            description: "",
+            coverUrl: "",
+            externalUrl: "",
+            videoUrl: "",
+            featured: false,
+            published: true,
+          });
+        if (type === "software")
+          content[type].push({ name: "新软件", iconUrl: "", visible: true });
+        if (type === "socials")
+          content[type].push({ platform: "新平台", url: "", visible: true });
+        markDirty();
+        renderRepeats();
+      }
+      function resolveUrl(url) {
+        if (!url) return "";
+        if (/^https?:/.test(url)) return url;
+        if (url.startsWith("/uploads/") || url.startsWith("/assets/"))
+          return api + url;
+        return url;
+      }
+      function beginPicker(target) {
+        picker = target;
+        $("#pickerTarget").textContent = target;
+        $("#pickerNotice").classList.remove("hidden");
+        showView("media");
+      }
+      function chooseMedia(url) {
+        const destination = picker?.startsWith("projects.")
+          ? "projects"
+          : picker?.startsWith("software.")
+            ? "about"
+            : picker?.startsWith("profile.")
+              ? "profile"
+              : "hero";
+        setPath(picker, url);
+        toast("图片已选择，记得保存草稿");
+        picker = null;
+        $("#pickerNotice").classList.add("hidden");
+        renderAll();
+        showView(destination);
+      }
+      function renderMedia() {
+        const items = payload.media || [];
+        $("#mediaCount").textContent = `${items.length} 张图片`;
+        $("#mediaGrid").innerHTML =
+          items
+            .map(
+              (item) =>
+                `<article class="media-card"><img src="${esc(resolveUrl(item.optimizedUrl))}" alt="${esc(item.originalName)}"><div class="media-info"><div class="media-name" title="${esc(item.originalName)}">${esc(item.originalName)}</div><div class="media-meta">${item.width}×${item.height} · ${Math.round(item.size / 1024)} KB · ${item.storage.toUpperCase()}${item.references?.length ? " · 使用中" : ""}</div><div class="media-actions">${picker ? `<button class="btn btn-sm btn-primary" data-choose="${esc(item.optimizedUrl)}">选择</button>` : ""}<button class="btn btn-sm btn-danger" data-delete-media="${item.id}" ${item.references?.length ? "disabled" : ""}>删除</button></div></div></article>`,
+            )
+            .join("") || '<p class="muted">还没有上传图片。</p>';
+        $$("[data-choose]").forEach(
+          (b) => (b.onclick = () => chooseMedia(b.dataset.choose)),
+        );
+        $$("[data-delete-media]").forEach(
+          (b) =>
+            (b.onclick = async () => {
+              if (!confirm("确认删除这张图片及原图？")) return;
+              try {
+                if (dirty) await save();
+                await request("/api/admin/media/" + b.dataset.deleteMedia, {
+                  method: "DELETE",
+                });
+                await reload();
+                toast("图片已删除");
+              } catch (e) {
+                toast(e.message);
+              }
+            }),
+        );
+      }
+      function renderSettings() {
+        const status = payload.settings;
+        $("#storageChoices").innerHTML =
+          `<div class="storage-option"><label><input type="radio" name="storage" value="local" ${status.provider === "local" ? "checked" : ""}> 服务器本地</label><p class="muted">已就绪 · 新上传保存到持久化目录</p></div><div class="storage-option"><label><input type="radio" name="storage" value="cos" ${status.provider === "cos" ? "checked" : ""} ${status.cos.ready ? "" : "disabled"}> 腾讯云 COS</label><p class="muted">${status.cos.ready ? `已就绪 · ${esc(status.cos.bucket)}` : `未配置：${esc(status.cos.missing.join(", "))}`}</p></div>`;
+        $$('[name="storage"]').forEach(
+          (r) =>
+            (r.onchange = async () => {
+              try {
+                payload.settings = await request(
+                  "/api/admin/settings/storage",
+                  { method: "PUT", body: { provider: r.value } },
+                );
+                renderSettings();
+                toast("存储设置已更新");
+              } catch (e) {
+                toast(e.message);
+              }
+            }),
+        );
+        const rows =
+          payload.revisions
+            .map(
+              (r) =>
+                `<article class="revision-card"><div class="revision-number">#${r.id}</div><div><div class="revision-title">${esc(r.heroTitle || r.siteName || "网站内容版本")}</div><div class="revision-meta">${formatDate(r.createdAt)} · 由 ${esc(r.createdBy)} 发布</div><div class="revision-counts">${r.counts.experiences} 段工作经历 · ${r.counts.caseStudies} 个项目经历 · ${r.counts.projects} 个作品</div><div class="revision-hash">SHA-256 ${esc(r.shortHash)}${r.matchesPublished ? '<span class="status-badge">当前发布</span>' : ""}${r.matchesDraft && !r.matchesPublished ? '<span class="status-badge">草稿一致</span>' : ""}${r.sameAsPrevious ? '<span class="status-badge">与上版相同</span>' : ""}</div></div><div class="revision-actions"><button class="btn btn-sm" data-restore="${r.id}">恢复为草稿</button><button class="btn btn-sm btn-danger" data-delete-revision="${r.id}">删除</button></div></article>`,
+            )
+            .join("") ||
+          '<p class="muted">还没有历史版本。首次发布后，版本会显示在这里。</p>';
+        $("#revisions").innerHTML = `<div class="revision-list">${rows}</div>`;
+        $("#revisionPreview").innerHTML =
+          payload.revisions
+            .slice(0, 3)
+            .map(
+              (r) =>
+                `<div class="revision"><span><strong>#${r.id}</strong> · ${esc(r.heroTitle || "网站内容")}</span><small class="muted">${formatDate(r.createdAt)}</small></div>`,
+            )
+            .join("") || '<p class="muted">暂无发布记录。</p>';
+        $$("[data-restore]").forEach(
+          (b) =>
+            (b.onclick = async () => {
+              if (
+                !confirm(
+                  `把版本 #${b.dataset.restore} 恢复到当前草稿？${dirty ? "尚未保存的编辑会被覆盖。" : ""}已发布网站不会立即改变。`,
+                )
+              )
+                return;
+              await request(
+                "/api/admin/revisions/" + b.dataset.restore + "/restore",
+                { method: "POST" },
+              );
+              await reload();
+              toast("版本已恢复为草稿");
+            }),
+        );
+        $$("[data-delete-revision]").forEach(
+          (b) =>
+            (b.onclick = async () => {
+              if (
+                !confirm(
+                  `确认删除历史版本 #${b.dataset.deleteRevision}？已发布网站与当前草稿不会受到影响。`,
+                )
+              )
+                return;
+              try {
+                if (dirty) await save();
+                await request(
+                  "/api/admin/revisions/" + b.dataset.deleteRevision,
+                  { method: "DELETE" },
+                );
+                await reload();
+                showView("settings");
+                toast("历史版本已删除");
+              } catch (e) {
+                toast(e.message);
+              }
+            }),
+        );
+      }
+      function renderLogs() {
+        const actionLabels = {
+          login_success: "登录成功",
+          login_failed: "登录失败",
+          logout: "退出登录",
+          draft_saved: "保存草稿",
+          site_published: "发布网站",
+          publish_skipped: "跳过重复发布",
+          revision_restored: "恢复历史版本",
+          revision_deleted: "删除历史版本",
+          storage_updated: "切换图片存储",
+          media_uploaded: "上传媒体",
+          media_deleted: "删除媒体",
+          backup_exported: "导出备份",
+        };
+        const rows = (payload.logs || [])
+          .map(
+            (log) =>
+              `<article class="log-row"><div><div class="log-action">${esc(actionLabels[log.action] || log.action)}</div><div class="log-meta">#${log.id}</div></div><div><strong>${esc(log.username)}</strong><div class="log-meta">${esc(log.ipAddress || "未知来源")}</div></div><div class="log-detail">${esc(log.detail || "—")} ${log.targetId ? `<span class="log-meta">· ${esc(log.targetType)} #${esc(log.targetId)}</span>` : ""}</div><time class="log-meta">${formatDate(log.createdAt)}</time></article>`,
+          )
+          .join("");
+        $("#adminLogs").innerHTML = rows
+          ? `<div class="log-list">${rows}</div>`
+          : '<div class="card"><p class="muted">还没有操作日志。</p></div>';
+      }
+      function formatDate(value) {
+        return value
+          ? new Date(value.replace(" ", "T") + "Z").toLocaleString("zh-CN")
+          : "—";
+      }
+      function renderOverview() {
+        const s = payload.stats;
+        $("#stats").innerHTML = [
+          ["工作经历", s.experiences],
+          ["项目经历", s.caseStudies],
+          ["精选作品", s.projects],
+          ["媒体图片", s.media],
+        ]
+          .map(
+            ([label, value]) =>
+              `<div class="card stat"><strong>${value}</strong><span>${label}</span></div>`,
+          )
+          .join("");
+        $("#dates").innerHTML =
+          `草稿保存：${formatDate(payload.draftUpdatedAt)}<br>最近发布：${formatDate(payload.publishedUpdatedAt)}<br>内容状态：${payload.versionState.hasUnpublishedChanges ? "有尚未发布的差异" : "草稿与线上一致"}<br><small>草稿 ${esc(payload.versionState.draftHash.slice(0, 10))} · 线上 ${esc(payload.versionState.publishedHash.slice(0, 10))}</small>`;
+      }
+      function renderAll() {
+        hydrateFields();
+        renderRepeats();
+        renderMedia();
+        renderSettings();
+        renderOverview();
+        renderLogs();
+        $("#exportBtn").href = api + "/api/admin/export";
+      }
+      async function reload() {
+        payload = await request("/api/admin/bootstrap");
+        content = payload.content;
+        renderAll();
+        markSaved();
+        $("#login").classList.add("hidden");
+        $("#cms").classList.remove("hidden");
+      }
+      function projectIssues() {
+        return content.projects
+          .filter(
+            (item) =>
+              item.published !== false &&
+              ((item.type === "video" && !item.videoUrl) ||
+                (item.type === "photo" && !item.externalUrl)),
+          )
+          .map(
+            (item) =>
+              `${item.title || "未命名作品"}缺少${item.type === "video" ? "视频地址" : "外部链接"}`,
+          );
+      }
+      async function save() {
+        try {
+          await request("/api/admin/content", {
+            method: "PUT",
+            body: content,
+          });
+          await reload();
+          const issues = projectIssues();
+          toast(
+            issues.length
+              ? `草稿已保存 · ${issues.length} 个作品还缺少链接`
+              : "草稿已保存",
+          );
+        } catch (e) {
+          toast(e.message);
+          throw e;
+        }
+      }
+      async function publish() {
+        try {
+          if (dirty) await save();
+          const issues = projectIssues();
+          if (issues.length) {
+            showView("projects");
+            toast(issues[0]);
+            return;
+          }
+          const result = await request("/api/admin/publish", {
+            method: "POST",
+          });
+          await reload();
+          toast(result.changed ? "网站已发布" : "内容没有变化，未创建重复版本");
+        } catch (e) {
+          toast(e.message);
+        }
+      }
+      async function uploadFile(file) {
+        if (!file) return;
+        const form = new FormData();
+        form.append("image", file);
+        $("#uploadStatus").textContent = "正在上传并优化…";
+        try {
+          if (dirty) await save();
+          await request("/api/admin/media", { method: "POST", body: form });
+          await reload();
+          showView("media");
+          toast("图片上传完成");
+        } catch (e) {
+          toast(e.message);
+        } finally {
+          $("#uploadStatus").textContent = "";
+        }
+      }
+      function preview() {
+        const target = payload?.frontendUrl || location.origin;
+        window.open(target.replace(/\/$/, "") + "/?preview=1", "_blank");
+      }
+      $$("[data-view]").forEach(
+        (b) => (b.onclick = () => showView(b.dataset.view)),
+      );
+      $(".mobile-nav").innerHTML = $(".nav-group").innerHTML;
+      $$(".mobile-nav [data-view]").forEach(
+        (b) => (b.onclick = () => showView(b.dataset.view)),
+      );
+      $$("[data-go]").forEach(
+        (b) => (b.onclick = () => showView(b.dataset.go)),
+      );
+      $$("[data-add]").forEach(
+        (b) => (b.onclick = () => addItem(b.dataset.add)),
+      );
+      $("#loginBtn").onclick = async () => {
+        try {
+          await request("/api/admin/login", {
+            method: "POST",
+            body: {
+              username: $("#username").value,
+              password: $("#password").value,
+            },
+          });
+          await reload();
+        } catch (e) {
+          $("#loginStatus").textContent = e.message;
+        }
+      };
+      $("#password").onkeydown = (e) => {
+        if (e.key === "Enter") $("#loginBtn").click();
+      };
+      $("#logoutBtn").onclick = async () => {
+        if (dirty && !confirm("尚有未保存的编辑，确定放弃并退出吗？")) return;
+        await request("/api/admin/logout", { method: "POST" });
+        dirty = false;
+        location.reload();
+      };
+      $("#saveBtn").onclick = save;
+      $("#publishBtn").onclick = publish;
+      $("#previewBtn").onclick = preview;
+      $("#previewSide").onclick = preview;
+      $("#uploadChoose").onclick = () => $("#fileInput").click();
+      $("#fileInput").onchange = (e) => uploadFile(e.target.files[0]);
+      $("#cancelPicker").onclick = () => {
+        picker = null;
+        $("#pickerNotice").classList.add("hidden");
+        renderMedia();
+      };
+      const drop = $("#dropzone");
+      ["dragenter", "dragover"].forEach((name) =>
+        drop.addEventListener(name, (e) => {
+          e.preventDefault();
+          drop.classList.add("drag");
+        }),
+      );
+      ["dragleave", "drop"].forEach((name) =>
+        drop.addEventListener(name, (e) => {
+          e.preventDefault();
+          drop.classList.remove("drag");
+        }),
+      );
+      drop.addEventListener("drop", (e) => uploadFile(e.dataTransfer.files[0]));
+      window.addEventListener("beforeunload", (e) => {
+        if (dirty) {
+          e.preventDefault();
+          e.returnValue = "";
+        }
+      });
+      reload().catch(() => {});
+    </script>
+  </body>
+</html>

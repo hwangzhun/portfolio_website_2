@@ -1,0 +1,142 @@
+:root {
+  --motion-ease: cubic-bezier(0.2, 0, 0, 1);
+  --motion-fast: 150ms;
+  --motion-base: 280ms;
+}
+.site-header {
+  transition-property: background-color, border-color, box-shadow;
+  transition-duration: var(--motion-base);
+  transition-timing-function: var(--motion-ease);
+}
+.nav-links a,
+.editorial-link,
+.social-links a,
+.project-link,
+.back-link {
+  transition-property: color, text-decoration-color, opacity, transform;
+  transition-duration: var(--motion-fast);
+  transition-timing-function: var(--motion-ease);
+}
+.nav-links a:hover,
+.editorial-link:hover,
+.social-links a:hover,
+.project-link:hover,
+.back-link:hover {
+  transform: translateY(-1px);
+}
+.nav-contact,
+.filters button,
+.editorial-link,
+.social-links a,
+.project-link,
+.back-link {
+  display: inline-block;
+}
+.nav-contact:active,
+.filters button:active,
+.editorial-link:active,
+.social-links a:active,
+.project-link:active,
+.back-link:active {
+  transform: scale(0.96);
+}
+.feature-card,
+.work-card,
+.software-grid article {
+  transition-property: transform, box-shadow, border-color;
+  transition-duration: var(--motion-base);
+  transition-timing-function: var(--motion-ease);
+}
+.feature-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 18px 42px rgba(20, 20, 19, 0.12);
+}
+.work-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 16px 34px rgba(20, 20, 19, 0.1);
+}
+.work-card img,
+.feature-card img {
+  outline: 1px solid oklch(0 0 0 / 0.1);
+  outline-offset: -1px;
+  transition-property: transform, filter;
+  transition-duration: 420ms;
+  transition-timing-function: var(--motion-ease);
+}
+.work-card:hover img {
+  transform: scale(1.025);
+}
+.software-grid article:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 12px 28px rgba(20, 20, 19, 0.09);
+}
+.filters button {
+  position: relative;
+  transition-property: color, opacity, transform;
+  transition-duration: var(--motion-fast);
+  transition-timing-function: var(--motion-ease);
+}
+.filters button::after {
+  content: "";
+  position: absolute;
+  right: 8px;
+  bottom: 5px;
+  left: 8px;
+  height: 1px;
+  background: currentColor;
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform var(--motion-fast) var(--motion-ease);
+}
+.filters button.active::after,
+.filters button:hover::after,
+.filters button:focus-visible::after {
+  transform: scaleX(1);
+}
+.work-card {
+  will-change: transform, opacity;
+}
+.reveal {
+  opacity: 0;
+  transform: translateY(16px);
+  transition-property: opacity, transform;
+  transition-duration: 520ms;
+  transition-timing-function: var(--motion-ease);
+}
+.reveal.is-revealed {
+  opacity: 1;
+  transform: translateY(0);
+}
+.reveal:nth-of-type(2) {
+  transition-delay: 100ms;
+}
+.reveal:nth-of-type(3) {
+  transition-delay: 200ms;
+}
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  .site-header,
+  .nav-links a,
+  .editorial-link,
+  .social-links a,
+  .project-link,
+  .back-link,
+  .nav-contact,
+  .filters button,
+  .feature-card,
+  .work-card,
+  .software-grid article,
+  .work-card img,
+  .feature-card img,
+  .filters button::after,
+  .reveal {
+    transition-duration: 0.01ms !important;
+    transition-delay: 0ms !important;
+  }
+  .reveal {
+    opacity: 1;
+    transform: none;
+  }
+}
