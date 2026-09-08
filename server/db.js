@@ -62,6 +62,21 @@ const defaultContent = {
     description:
       "摄影、摄像、剪辑与调色并非孤立的工序，而是一条完整的叙事线。我习惯深入项目的前期思考，也珍惜后期中每一次克制的取舍。",
   },
+  seo: {
+    siteUrl: "https://hwangzhun.com",
+    title: "黄臻 Cayson｜深圳摄影师、摄像师与剪辑师作品集",
+    description:
+      "黄臻（Cayson）个人影像作品集，深圳摄影师、摄像师与剪辑师，专注品牌影片、产品影像、活动纪实、后期剪辑与调色。",
+    keywords:
+      "黄臻,Cayson Huang,深圳摄影师,深圳摄像师,视频剪辑师,品牌影片,产品摄影,活动摄影,影像作品集",
+    author: "黄臻 Cayson Huang",
+    socialTitle: "黄臻 Cayson｜影像作品与创作档案",
+    socialDescription:
+      "品牌影片、产品影像与活动纪实作品集——以有温度、有节奏的视觉叙事记录真实发生的事。",
+    socialImage: "/assets/images/project-8.jpg",
+    allowIndexing: true,
+    enableStructuredData: true,
+  },
   sections: {
     worksEyebrow: "SELECTED ARCHIVE",
     worksTitle: "精选作品",
@@ -286,7 +301,7 @@ const legacyVideoUrls = {
 };
 function normalizeContent(input = {}) {
   const result = clone(defaultContent);
-  for (const key of ["profile", "hero", "footer", "sections"])
+  for (const key of ["profile", "hero", "footer", "sections", "seo"])
     if (input[key] && typeof input[key] === "object")
       Object.assign(result[key], input[key]);
   if (

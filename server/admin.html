@@ -733,6 +733,7 @@
           ><button class="nav-button" data-view="cases">项目经历</button
           ><button class="nav-button" data-view="projects">精选作品</button
           ><button class="nav-button" data-view="media">媒体库</button
+          ><button class="nav-button" data-view="seo">SEO 设置</button
           ><button class="nav-button" data-view="settings">设置与备份</button
           ><button class="nav-button" data-view="logs">操作日志</button>
         </nav>
@@ -1043,6 +1044,67 @@
               <a id="exportBtn"><button class="btn">导出 JSON 备份</button></a>
             </div>
           </section>
+          <section class="view" data-panel="seo">
+            <p class="eyebrow">SEARCH & SHARING</p>
+            <h1 class="page-title">SEO 设置</h1>
+            <p class="page-description">
+              管理搜索结果摘要、社交分享卡片与搜索引擎收录。内容已根据当前作品集预填。
+            </p>
+            <div class="card section-card">
+              <h2>搜索结果</h2>
+              <div class="form-grid">
+                <div class="field span-2">
+                  <label>网站正式地址</label>
+                  <input type="url" data-bind="seo.siteUrl" placeholder="https://example.com" />
+                  <small>用于 canonical、robots.txt 和 sitemap.xml，请填写最终上线域名。</small>
+                </div>
+                <div class="field span-2">
+                  <label>SEO 标题</label>
+                  <input data-bind="seo.title" maxlength="70" />
+                  <small>建议控制在 30–60 个字符，并包含姓名、所在地与核心职业。</small>
+                </div>
+                <div class="field span-2">
+                  <label>SEO 描述</label>
+                  <textarea data-bind="seo.description" maxlength="180"></textarea>
+                  <small>会显示在搜索结果摘要中，建议约 70–160 个字符。</small>
+                </div>
+                <div class="field span-2">
+                  <label>关键词</label>
+                  <input data-bind="seo.keywords" />
+                  <small>用英文逗号分隔，优先填写姓名、城市、职业和服务类型。</small>
+                </div>
+                <div class="field span-2">
+                  <label>作者</label><input data-bind="seo.author" />
+                </div>
+                <label class="check span-2">
+                  <input type="checkbox" data-bind="seo.allowIndexing" /> 允许搜索引擎收录网站
+                </label>
+              </div>
+            </div>
+            <div class="card section-card">
+              <h2>社交分享卡片</h2>
+              <div class="form-grid">
+                <div class="field span-2">
+                  <label>分享标题</label><input data-bind="seo.socialTitle" maxlength="70" />
+                </div>
+                <div class="field span-2">
+                  <label>分享描述</label><textarea data-bind="seo.socialDescription" maxlength="180"></textarea>
+                </div>
+                <div class="field span-2">
+                  <label>分享图片</label>
+                  <div class="cover-row">
+                    <input data-bind="seo.socialImage" />
+                    <button class="btn btn-sm" data-pick="seo.socialImage">从媒体库选择</button>
+                  </div>
+                  <small>建议使用 1200 × 630 像素横图；当前预填为精选作品封面。</small>
+                  <img class="thumb" data-thumb="seo.socialImage" alt="分享图片预览" />
+                </div>
+                <label class="check span-2">
+                  <input type="checkbox" data-bind="seo.enableStructuredData" /> 输出摄影师结构化资料（JSON-LD）
+                </label>
+              </div>
+            </div>
+          </section>
           <section class="view" data-panel="logs">
             <p class="eyebrow">AUDIT LOG</p>
             <h1 class="page-title">操作日志</h1>
@@ -1133,15 +1195,20 @@
       }
       function hydrateFields() {
         $$("[data-bind]").forEach((input) => {
-          input.value = getPath(input.dataset.bind) || "";
+          const isCheckbox = input.type === "checkbox";
+          if (isCheckbox) input.checked = getPath(input.dataset.bind) !== false;
+          else input.value = getPath(input.dataset.bind) || "";
           input.oninput = () => {
-            setPath(input.dataset.bind, input.value);
+            setPath(
+              input.dataset.bind,
+              isCheckbox ? input.checked : input.value,
+            );
             const thumb = $(`[data-thumb="${input.dataset.bind}"]`);
-            if (thumb) thumb.src = input.value;
+            if (thumb) thumb.src = resolveUrl(input.value);
           };
         });
         $$("[data-thumb]").forEach(
-          (img) => (img.src = getPath(img.dataset.thumb) || ""),
+          (img) => (img.src = resolveUrl(getPath(img.dataset.thumb) || "")),
         );
       }
       function itemButtons(type, index) {
@@ -1310,6 +1377,8 @@
             ? "about"
             : picker?.startsWith("profile.")
               ? "profile"
+              : picker?.startsWith("seo.")
+                ? "seo"
               : "hero";
         setPath(picker, url);
         toast("图片已选择，记得保存草稿");

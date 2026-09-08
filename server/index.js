@@ -175,6 +175,111 @@ function audit(req, action, targetType = "", targetId = "", detail = "") {
     console.error("Unable to write admin audit log", error);
   }
 }
+function escapeHtml(value) {
+  return String(value ?? "").replace(
+    /[&<>"']/g,
+    (character) =>
+      ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#39;",
+      })[character],
+  );
+}
+function publicBaseUrl(req, seo = {}) {
+  const configured = String(seo.siteUrl || "").trim().replace(/\/$/, "");
+  if (/^https?:\/\//i.test(configured)) return configured;
+  return `${req.protocol}://${req.get("host")}`;
+}
+function absolutePublicUrl(value, baseUrl) {
+  if (!value) return "";
+  try {
+    return new URL(value, `${baseUrl}/`).href;
+  } catch {
+    return "";
+  }
+}
+function renderPublicPage(req, res, filename, page = "home") {
+  const content = getDocument("published").content;
+  const seo = content.seo || {};
+  const baseUrl = publicBaseUrl(req, seo);
+  const project =
+    page === "video"
+      ? (content.projects || []).find(
+          (item) =>
+            item.id === req.query.id &&
+            item.type === "video" &&
+            item.published !== false,
+        )
+      : null;
+  const title = project
+    ? `${project.title}｜${content.profile?.siteName || "Cayson Huang"}`
+    : seo.title || `${content.profile?.englishName || "Cayson"} — 影像档案`;
+  const description = project?.description || seo.description || "";
+  const socialTitle = project ? title : seo.socialTitle || title;
+  const socialDescription = project?.description || seo.socialDescription || description;
+  const image = absolutePublicUrl(
+    project?.coverUrl || seo.socialImage,
+    baseUrl,
+  );
+  const canonical = project
+    ? `${baseUrl}/video.html?id=${encodeURIComponent(project.id)}`
+    : `${baseUrl}/`;
+  const robots = seo.allowIndexing === false ? "noindex,nofollow" : "index,follow";
+  const tags = [
+    `<title>${escapeHtml(title)}</title>`,
+    `<meta name="description" content="${escapeHtml(description)}">`,
+    seo.keywords
+      ? `<meta name="keywords" content="${escapeHtml(seo.keywords)}">`
+      : "",
+    seo.author ? `<meta name="author" content="${escapeHtml(seo.author)}">` : "",
+    `<meta name="robots" content="${robots}">`,
+    `<link rel="canonical" href="${escapeHtml(canonical)}">`,
+    `<meta property="og:locale" content="zh_CN">`,
+    `<meta property="og:type" content="${project ? "video.other" : "website"}">`,
+    `<meta property="og:site_name" content="${escapeHtml(content.profile?.siteName || "Cayson Huang")}">`,
+    `<meta property="og:title" content="${escapeHtml(socialTitle)}">`,
+    `<meta property="og:description" content="${escapeHtml(socialDescription)}">`,
+    `<meta property="og:url" content="${escapeHtml(canonical)}">`,
+    image ? `<meta property="og:image" content="${escapeHtml(image)}">` : "",
+    `<meta name="twitter:card" content="${image ? "summary_large_image" : "summary"}">`,
+    `<meta name="twitter:title" content="${escapeHtml(socialTitle)}">`,
+    `<meta name="twitter:description" content="${escapeHtml(socialDescription)}">`,
+    image ? `<meta name="twitter:image" content="${escapeHtml(image)}">` : "",
+  ];
+  if (seo.enableStructuredData !== false && !project) {
+    const person = {
+      "@context": "https://schema.org",
+      "@type": "Person",
+      name: content.profile?.name || seo.author,
+      alternateName: content.profile?.englishName || "",
+      url: canonical,
+      image: absolutePublicUrl(content.profile?.avatarUrl, baseUrl),
+      jobTitle: content.profile?.title || "",
+      email: content.profile?.email || "",
+      address: content.profile?.location || "",
+      sameAs: (content.socials || [])
+        .filter((item) => item.visible !== false && item.url)
+        .map((item) => item.url),
+    };
+    tags.push(
+      `<script type="application/ld+json" data-seo-schema>${JSON.stringify(person).replace(/</g, "\\u003c")}</script>`,
+    );
+  }
+  let html = fs.readFileSync(path.join(projectRoot, filename), "utf8");
+  html = html
+    .replace(/<title>[\s\S]*?<\/title>/i, "")
+    .replace(/<meta\s+name="description"[^>]*>/i, "")
+    .replace(/<meta\s+name="(?:keywords|author|robots)"[^>]*>/gi, "")
+    .replace(/<meta\s+property="og:[^"]+"[^>]*>/gi, "")
+    .replace(/<meta\s+name="twitter:[^"]+"[^>]*>/gi, "")
+    .replace(/<link\s+rel="canonical"[^>]*>/gi, "")
+    .replace(/<script\s+type="application\/ld\+json"[^>]*>[\s\S]*?<\/script>/gi, "")
+    .replace("</head>", `${tags.filter(Boolean).join("")}\n</head>`);
+  res.type("html").send(html);
+}
 function adminPayload() {
   const draft = getDocument("draft"),
     published = getDocument("published"),
@@ -209,6 +314,36 @@ function adminPayload() {
 
 app.get("/api/health", (_req, res) => res.json({ ok: true }));
 app.get("/api/site", (_req, res) => res.json(getDocument("published").content));
+app.get("/robots.txt", (req, res) => {
+  const seo = getDocument("published").content.seo || {};
+  const baseUrl = publicBaseUrl(req, seo);
+  const rules =
+    seo.allowIndexing === false
+      ? "User-agent: *\nDisallow: /"
+      : "User-agent: *\nAllow: /\nDisallow: /manage\nDisallow: /api/admin";
+  res.type("text/plain").send(`${rules}\nSitemap: ${baseUrl}/sitemap.xml\n`);
+});
+app.get("/sitemap.xml", (req, res) => {
+  const content = getDocument("published").content;
+  const baseUrl = publicBaseUrl(req, content.seo || {});
+  const urls = [
+    `${baseUrl}/`,
+    ...(content.projects || [])
+      .filter(
+        (item) =>
+          item.published !== false && item.type === "video" && item.videoUrl,
+      )
+      .map(
+        (item) =>
+          `${baseUrl}/video.html?id=${encodeURIComponent(item.id)}`,
+      ),
+  ];
+  res
+    .type("application/xml")
+    .send(
+      `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${urls.map((url) => `<url><loc>${escapeHtml(url)}</loc></url>`).join("")}</urlset>`,
+    );
+});
 
 const loginLimiter = rateLimit({
   windowMs: 10 * 60 * 1000,
@@ -491,11 +626,11 @@ app.get("/api/admin/export", requireAdmin, (req, res) => {
 app.get("/manage", (_req, res) =>
   res.sendFile(path.join(__dirname, "admin.html")),
 );
-app.get(["/", "/index.html"], (_req, res) =>
-  res.sendFile(path.join(projectRoot, "index.html")),
+app.get(["/", "/index.html"], (req, res) =>
+  renderPublicPage(req, res, "index.html"),
 );
-app.get("/video.html", (_req, res) =>
-  res.sendFile(path.join(projectRoot, "video.html")),
+app.get("/video.html", (req, res) =>
+  renderPublicPage(req, res, "video.html", "video"),
 );
 app.use((error, _req, res, _next) => {
   console.error(error);
