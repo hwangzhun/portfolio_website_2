@@ -38,7 +38,7 @@ docker compose up -d
 
 站点默认监听宿主机 8787 端口。由 1Panel、Nginx、Caddy 或云负载均衡将 HTTPS 流量反向代理到该端口；应用本身只提供 HTTP。
 
-容器以 UID/GID `1000:1000` 运行，并保留同 UID 的 `node` 用户别名，与旧 Node 镜像的数据卷权限及 1Panel 升级配置兼容。健康检查由 `/app/portfolio healthcheck` 执行，Scratch 镜像中没有 shell、Node、curl 或包管理器。
+容器以 UID/GID `1000:1000` 运行，并保留同 UID 的 `node` 用户别名及旧 `docker-entrypoint.sh` 兼容入口，可适配 1Panel 在升级时沿用旧 Node 容器配置的行为。兼容入口仍是同一个静态 Go 二进制，不包含 shell 或 Node。健康检查由 `/app/portfolio healthcheck` 执行，Scratch 镜像中没有 curl 或包管理器。
 
 ## 数据升级、备份与恢复
 
