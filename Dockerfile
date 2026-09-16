@@ -21,6 +21,8 @@ ENV NODE_ENV=production \
 
 WORKDIR /app
 COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
+COPY docker/passwd /etc/passwd
+COPY docker/group /etc/group
 COPY --from=builder --chown=1000:1000 /out/data /app/data
 COPY --from=builder --chown=1000:1000 /out/portfolio /app/portfolio
 
