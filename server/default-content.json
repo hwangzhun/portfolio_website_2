@@ -1,0 +1,111 @@
+{
+  "profile": {
+    "siteName": "YOUR PORTFOLIO",
+    "name": "示例姓名",
+    "englishName": "Your Name",
+    "title": "独立创作者",
+    "email": "hello@example.com",
+    "phone": "",
+    "location": "所在城市",
+    "avatarUrl": "/assets/images/placeholder.svg"
+  },
+  "hero": {
+    "eyebrow": "SELECTED WORKS · 2024—2026",
+    "title": "记录想法",
+    "linkedTitle": "分享作品",
+    "description": "这是一段示例介绍。请登录内容管理后台，替换为你自己的个人简介。",
+    "featureEyebrow": "SAMPLE NOTE / 01",
+    "featureTitle": "保持观察，持续创作。",
+    "featureDescription": "这里是功能介绍的占位文本，可以在后台自由修改。",
+    "featureImage": "/assets/images/placeholder.svg"
+  },
+  "about": {
+    "eyebrow": "ABOUT THIS TEMPLATE",
+    "title": "一个可以自由编辑的作品集模板。",
+    "description": "这里是关于页面的示例内容，不代表任何真实人物、组织或经历。"
+  },
+  "seo": {
+    "siteUrl": "",
+    "title": "示例作品集｜Portfolio Template",
+    "description": "一个用于演示内容管理功能的示例作品集网站。",
+    "keywords": "示例作品集,Portfolio,Template",
+    "author": "示例作者",
+    "socialTitle": "示例作品集",
+    "socialDescription": "请在内容管理后台替换这里的 SEO 信息。",
+    "socialImage": "/assets/images/placeholder.svg",
+    "allowIndexing": false,
+    "enableStructuredData": false
+  },
+  "sections": {
+    "worksEyebrow": "SAMPLE ARCHIVE",
+    "worksTitle": "示例作品",
+    "recordsEyebrow": "SAMPLE RECORD",
+    "recordsTitle": "示例经历",
+    "experienceTitle": "工作经历",
+    "caseStudyTitle": "项目经历",
+    "toolsEyebrow": "SAMPLE TOOLS"
+  },
+  "experiences": [
+    {
+      "startDate": "2024",
+      "endDate": "现在",
+      "company": "示例工作室",
+      "department": "创意团队",
+      "role": "示例职位",
+      "visible": true,
+      "details": ["工作内容：这里是一条示例工作描述。", "工作成果：这里是一条示例成果描述。"]
+    }
+  ],
+  "caseStudies": [
+    {
+      "period": "2025",
+      "title": "示例项目",
+      "role": "示例角色",
+      "visible": true,
+      "link": "https://example.com",
+      "details": ["项目内容：这是一个与任何真实项目无关的占位案例。", "项目成果：请在后台替换为自己的内容。"]
+    }
+  ],
+  "projects": [
+    {
+      "id": "sample-project-one",
+      "type": "photo",
+      "title": "示例作品一",
+      "category": "示例分类",
+      "year": "2025",
+      "meta": "示例说明",
+      "description": "这是一个虚构的作品条目。",
+      "coverUrl": "/assets/images/placeholder.svg",
+      "externalUrl": "https://example.com",
+      "videoUrl": "",
+      "featured": true,
+      "published": true
+    },
+    {
+      "id": "sample-project-two",
+      "type": "photo",
+      "title": "示例作品二",
+      "category": "示例分类",
+      "year": "2024",
+      "meta": "示例说明",
+      "description": "这是另一个虚构的作品条目。",
+      "coverUrl": "/assets/images/placeholder.svg",
+      "externalUrl": "https://example.com",
+      "videoUrl": "",
+      "featured": false,
+      "published": true
+    }
+  ],
+  "software": [
+    {"name": "示例工具 A", "iconUrl": "/assets/images/placeholder.svg", "visible": true},
+    {"name": "示例工具 B", "iconUrl": "/assets/images/placeholder.svg", "visible": true}
+  ],
+  "socials": [
+    {"platform": "示例链接", "url": "https://example.com", "visible": true}
+  ],
+  "tools": "示例工具 A · 示例工具 B",
+  "footer": {
+    "prompt": "这里是页脚示例文案",
+    "copyright": "© 2026 YOUR PORTFOLIO."
+  }
+}

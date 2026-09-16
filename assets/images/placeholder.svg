@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 800" role="img" aria-labelledby="title description">
+  <title id="title">示例图片占位符</title>
+  <desc id="description">不包含任何个人信息的中性占位图</desc>
+  <rect width="1200" height="800" fill="#ece8df"/>
+  <circle cx="600" cy="330" r="108" fill="#c5c0b4"/>
+  <path d="M370 650c34-130 126-196 230-196s196 66 230 196" fill="#c5c0b4"/>
+  <text x="600" y="735" text-anchor="middle" font-family="serif" font-size="38" fill="#565a46">PLACEHOLDER</text>
+</svg>
