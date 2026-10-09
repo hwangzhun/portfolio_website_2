@@ -45,14 +45,22 @@ type Media struct {
 	CreatedAt    string `json:"createdAt,omitempty"`
 }
 type AdminLog struct {
-	ID         int64  `json:"id"`
-	Username   string `json:"username"`
-	Action     string `json:"action"`
-	TargetType string `json:"targetType"`
-	TargetID   string `json:"targetId"`
-	Detail     string `json:"detail"`
-	IPAddress  string `json:"ipAddress"`
-	CreatedAt  string `json:"createdAt"`
+	ID            int64  `json:"id"`
+	Username      string `json:"username"`
+	Action        string `json:"action"`
+	TargetType    string `json:"targetType"`
+	TargetID      string `json:"targetId"`
+	Detail        string `json:"detail"`
+	IPAddress     string `json:"ipAddress"`
+	CreatedAt     string `json:"createdAt"`
+	RequestID     string `json:"requestId,omitempty"`
+	Method        string `json:"method,omitempty"`
+	Path          string `json:"path,omitempty"`
+	StatusCode    int    `json:"statusCode,omitempty"`
+	DurationMS    int64  `json:"durationMs,omitempty"`
+	ResponseBytes int64  `json:"responseBytes,omitempty"`
+	UserAgent     string `json:"userAgent,omitempty"`
+	Referer       string `json:"referer,omitempty"`
 }
 
 const schema = `
@@ -64,7 +72,7 @@ CREATE TABLE IF NOT EXISTS content_revisions (id INTEGER PRIMARY KEY AUTOINCREME
 CREATE TABLE IF NOT EXISTS admin_sessions (token_hash TEXT PRIMARY KEY,username TEXT NOT NULL,expires_at INTEGER NOT NULL,created_at TEXT DEFAULT CURRENT_TIMESTAMP);
 CREATE TABLE IF NOT EXISTS media_assets (id INTEGER PRIMARY KEY AUTOINCREMENT,original_name TEXT NOT NULL,storage TEXT NOT NULL,original_url TEXT NOT NULL,optimized_url TEXT NOT NULL,original_key TEXT DEFAULT '',optimized_key TEXT DEFAULT '',mime_type TEXT NOT NULL,width INTEGER DEFAULT 0,height INTEGER DEFAULT 0,size INTEGER DEFAULT 0,created_at TEXT DEFAULT CURRENT_TIMESTAMP);
 CREATE TABLE IF NOT EXISTS cms_settings (key TEXT PRIMARY KEY,value TEXT NOT NULL);
-CREATE TABLE IF NOT EXISTS admin_logs (id INTEGER PRIMARY KEY AUTOINCREMENT,username TEXT NOT NULL DEFAULT 'system',action TEXT NOT NULL,target_type TEXT DEFAULT '',target_id TEXT DEFAULT '',detail TEXT DEFAULT '',ip_address TEXT DEFAULT '',created_at TEXT DEFAULT CURRENT_TIMESTAMP);`
+CREATE TABLE IF NOT EXISTS admin_logs (id INTEGER PRIMARY KEY AUTOINCREMENT,username TEXT NOT NULL DEFAULT 'system',action TEXT NOT NULL,target_type TEXT DEFAULT '',target_id TEXT DEFAULT '',detail TEXT DEFAULT '',ip_address TEXT DEFAULT '',request_id TEXT DEFAULT '',method TEXT DEFAULT '',path TEXT DEFAULT '',status_code INTEGER DEFAULT 0,duration_ms INTEGER DEFAULT 0,response_bytes INTEGER DEFAULT 0,user_agent TEXT DEFAULT '',referer TEXT DEFAULT '',created_at TEXT DEFAULT CURRENT_TIMESTAMP);`
 
 func openStore(dataDir string) (*Store, error) {
 	if err := os.MkdirAll(dataDir, 0755); err != nil {
@@ -109,6 +117,32 @@ func (s *Store) init() error {
 			return err
 		}
 	}
+	logColumns := map[string]string{
+		"request_id": "TEXT DEFAULT ''", "method": "TEXT DEFAULT ''", "path": "TEXT DEFAULT ''",
+		"status_code": "INTEGER DEFAULT 0", "duration_ms": "INTEGER DEFAULT 0", "response_bytes": "INTEGER DEFAULT 0",
+		"user_agent": "TEXT DEFAULT ''", "referer": "TEXT DEFAULT ''",
+	}
+	logRows, logErr := s.db.Query("PRAGMA table_info(admin_logs)")
+	if logErr != nil {
+		return logErr
+	}
+	existingLogColumns := map[string]bool{}
+	for logRows.Next() {
+		var cid, notnull, pk int
+		var name, typ string
+		var def any
+		if logRows.Scan(&cid, &name, &typ, &notnull, &def, &pk) == nil {
+			existingLogColumns[name] = true
+		}
+	}
+	logRows.Close()
+	for name, definition := range logColumns {
+		if !existingLogColumns[name] {
+			if _, err = s.db.Exec("ALTER TABLE admin_logs ADD COLUMN " + name + " " + definition); err != nil {
+				return err
+			}
+		}
+	}
 	if _, err = s.db.Exec("CREATE INDEX IF NOT EXISTS idx_content_revisions_hash ON content_revisions(content_hash); CREATE INDEX IF NOT EXISTS idx_admin_logs_created_at ON admin_logs(created_at DESC, id DESC)"); err != nil {
 		return err
 	}
@@ -119,29 +153,30 @@ func (s *Store) init() error {
 	} else if !errors.Is(err, sql.ErrNoRows) {
 		return err
 	}
-	videoRows, err := s.db.Query("SELECT title,description,cover_url,playback_url,published FROM videos ORDER BY sort_order,id")
+	videoRows, err := s.db.Query("SELECT title,description,cover_url,file_id,published FROM videos ORDER BY sort_order,id")
 	if err != nil {
 		return err
 	}
-	known := map[string]bool{}
+	known := map[string]object{}
 	for _, raw := range asArray(initial["projects"]) {
-		known[stringValue(asObject(raw)["title"])] = true
+		item := asObject(raw)
+		known[stringValue(item["title"])] = item
 	}
 	idx := 0
 	for videoRows.Next() {
-		var title, desc, cover, link string
+		var title, desc, cover, fileID string
 		var published int
-		if err = videoRows.Scan(&title, &desc, &cover, &link, &published); err != nil {
+		if err = videoRows.Scan(&title, &desc, &cover, &fileID, &published); err != nil {
 			return err
 		}
-		if known[title] {
+		if existing := known[title]; existing != nil {
+			if stringValue(existing["vodFileId"]) == "" && fileID != "" {
+				existing["vodFileId"] = fileID
+			}
 			continue
 		}
 		idx++
-		if link == "" {
-			link = legacyVideoURLs[title]
-		}
-		initial["projects"] = append(asArray(initial["projects"]), object{"id": fmt.Sprintf("legacy-video-%d", idx), "type": "video", "title": title, "category": "视频", "year": "", "meta": "", "description": desc, "coverUrl": cover, "externalUrl": "", "videoUrl": link, "featured": false, "published": published != 0})
+		initial["projects"] = append(asArray(initial["projects"]), object{"id": fmt.Sprintf("legacy-video-%d", idx), "type": "video", "title": title, "category": "视频", "year": "", "meta": "", "description": desc, "coverUrl": cover, "externalUrl": "", "vodFileId": fileID, "featured": false, "published": published != 0})
 	}
 	videoRows.Close()
 	b, _ := json.Marshal(initial)
@@ -412,7 +447,7 @@ func (s *Store) UpsertAdminHash(hash string) error {
 	return err
 }
 func (s *Store) Log(l AdminLog) error {
-	_, err := s.db.Exec("INSERT INTO admin_logs (username,action,target_type,target_id,detail,ip_address) VALUES (?,?,?,?,?,?)", l.Username, l.Action, l.TargetType, l.TargetID, l.Detail, l.IPAddress)
+	_, err := s.db.Exec("INSERT INTO admin_logs (username,action,target_type,target_id,detail,ip_address,request_id,method,path,status_code,duration_ms,response_bytes,user_agent,referer) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)", l.Username, l.Action, l.TargetType, l.TargetID, l.Detail, l.IPAddress, l.RequestID, l.Method, l.Path, l.StatusCode, l.DurationMS, l.ResponseBytes, l.UserAgent, l.Referer)
 	return err
 }
 func (s *Store) ListLogs(limit int) ([]AdminLog, error) {
@@ -422,7 +457,7 @@ func (s *Store) ListLogs(limit int) ([]AdminLog, error) {
 	if limit > 500 {
 		limit = 500
 	}
-	rows, err := s.db.Query("SELECT id,username,action,target_type,target_id,detail,ip_address,created_at FROM admin_logs ORDER BY id DESC LIMIT ?", limit)
+	rows, err := s.db.Query("SELECT id,username,action,target_type,target_id,detail,ip_address,created_at,request_id,method,path,status_code,duration_ms,response_bytes,user_agent,referer FROM admin_logs ORDER BY id DESC LIMIT ?", limit)
 	if err != nil {
 		return nil, err
 	}
@@ -430,11 +465,18 @@ func (s *Store) ListLogs(limit int) ([]AdminLog, error) {
 	out := make([]AdminLog, 0)
 	for rows.Next() {
 		var l AdminLog
-		if err = rows.Scan(&l.ID, &l.Username, &l.Action, &l.TargetType, &l.TargetID, &l.Detail, &l.IPAddress, &l.CreatedAt); err != nil {
+		if err = rows.Scan(&l.ID, &l.Username, &l.Action, &l.TargetType, &l.TargetID, &l.Detail, &l.IPAddress, &l.CreatedAt, &l.RequestID, &l.Method, &l.Path, &l.StatusCode, &l.DurationMS, &l.ResponseBytes, &l.UserAgent, &l.Referer); err != nil {
 			return nil, err
 		}
 		out = append(out, l)
 	}
 	return out, rows.Err()
+}
+func (s *Store) PruneLogs(keep int) error {
+	if keep < 1000 {
+		keep = 1000
+	}
+	_, err := s.db.Exec("DELETE FROM admin_logs WHERE id NOT IN (SELECT id FROM admin_logs ORDER BY id DESC LIMIT ?)", keep)
+	return err
 }
 func (s *Store) Close() error { return s.db.Close() }

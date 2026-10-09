@@ -20,6 +20,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"golang.org/x/crypto/bcrypt"
@@ -31,6 +32,9 @@ type App struct {
 	router                       *http.ServeMux
 	static                       http.Handler
 	generalLimiter, loginLimiter *rateLimiter
+	accessLogCount               atomic.Uint64
+	iconMu                       sync.Mutex
+	iconCache                    map[string][]byte
 }
 type contextKey string
 
@@ -41,13 +45,21 @@ func newApp(store *Store, uploadDir string) (*App, error) {
 		return nil, err
 	}
 	assets, _ := fs.Sub(webFiles, "assets")
-	a := &App{store: store, uploadDir: uploadDir, static: cacheControl("public, max-age=604800", http.StripPrefix("/assets/", http.FileServer(http.FS(assets)))), generalLimiter: newRateLimiter(400, 15*time.Minute), loginLimiter: newRateLimiter(5, 10*time.Minute)}
+	a := &App{store: store, uploadDir: uploadDir, static: cacheControl("public, max-age=604800", http.StripPrefix("/assets/", http.FileServer(http.FS(assets)))), generalLimiter: newRateLimiter(400, 15*time.Minute), loginLimiter: newRateLimiter(5, 10*time.Minute), iconCache: map[string][]byte{}}
 	r := http.NewServeMux()
 	a.router = r
 	r.HandleFunc("GET /api/health", func(w http.ResponseWriter, r *http.Request) { writeJSON(w, 200, object{"ok": true}) })
 	r.HandleFunc("GET /api/site", a.site)
+	r.HandleFunc("GET /api/videos/{id}/playback", a.videoPlayback)
+	r.HandleFunc("POST /api/client-events", a.clientDiagnostics)
 	r.HandleFunc("GET /robots.txt", a.robots)
 	r.HandleFunc("GET /sitemap.xml", a.sitemap)
+	r.HandleFunc("GET /site.webmanifest", a.siteManifest)
+	r.HandleFunc("GET /favicon.ico", a.faviconRedirect)
+	r.HandleFunc("GET /icons/site-32.png", a.siteIconImage)
+	r.HandleFunc("GET /icons/site-180.png", a.siteIconImage)
+	r.HandleFunc("GET /icons/site-192.png", a.siteIconImage)
+	r.HandleFunc("GET /icons/site-512.png", a.siteIconImage)
 	r.HandleFunc("POST /api/admin/login", a.login)
 	r.Handle("POST /api/admin/logout", a.admin(http.HandlerFunc(a.logout)))
 	r.Handle("GET /api/admin/bootstrap", a.admin(http.HandlerFunc(a.bootstrap)))
@@ -70,23 +82,31 @@ func newApp(store *Store, uploadDir string) (*App, error) {
 }
 
 func (a *App) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	started := time.Now()
+	id := requestID()
+	r = r.WithContext(context.WithValue(r.Context(), requestIDKey, id))
+	w.Header().Set("X-Request-ID", id)
+	metrics := &responseMetrics{ResponseWriter: w}
+	w = metrics
+	defer a.recordAccess(r, metrics, started)
 	w.Header().Set("Cross-Origin-Opener-Policy", "same-origin")
 	w.Header().Set("Cross-Origin-Resource-Policy", "cross-origin")
 	w.Header().Set("Origin-Agent-Cluster", "?1")
-	w.Header().Set("Referrer-Policy", "no-referrer")
+	w.Header().Set("Referrer-Policy", "strict-origin-when-cross-origin")
 	w.Header().Set("X-Content-Type-Options", "nosniff")
 	w.Header().Set("X-DNS-Prefetch-Control", "off")
 	w.Header().Set("X-Download-Options", "noopen")
 	w.Header().Set("X-Frame-Options", "SAMEORIGIN")
 	w.Header().Set("X-Permitted-Cross-Domain-Policies", "none")
 	w.Header().Set("X-XSS-Protection", "0")
-	if strings.HasPrefix(r.URL.Path, "/api/admin") && !a.generalLimiter.allow(clientIP(r)) {
+	limitedAPI := strings.HasPrefix(r.URL.Path, "/api/admin") || strings.HasPrefix(r.URL.Path, "/api/videos/") || r.URL.Path == "/api/client-events"
+	if limitedAPI && !a.generalLimiter.allow(clientIP(r)) {
 		writeJSON(w, 429, object{"error": "Too many requests, please try again later."})
 		return
 	}
 	defer func() {
 		if rec := recover(); rec != nil {
-			log.Printf("panic: %v", rec)
+			log.Printf("panic request_id=%s: %v", requestIDFrom(r), rec)
 			writeJSON(w, 500, object{"error": "服务器处理失败"})
 		}
 	}()
@@ -148,7 +168,7 @@ func (a *App) audit(r *http.Request, action, targetType, targetID, detail string
 			user = "system"
 		}
 	}
-	if err := a.store.Log(AdminLog{Username: user, Action: action, TargetType: targetType, TargetID: targetID, Detail: detail, IPAddress: clientIP(r)}); err != nil {
+	if err := a.store.Log(AdminLog{Username: user, Action: action, TargetType: targetType, TargetID: targetID, Detail: detail, IPAddress: accessClientIP(r), RequestID: requestIDFrom(r)}); err != nil {
 		log.Printf("Unable to write admin audit log: %v", err)
 	}
 }
@@ -159,6 +179,12 @@ func (a *App) site(w http.ResponseWriter, r *http.Request) {
 		a.fail(w, e)
 		return
 	}
+	d.Content, e = a.contentWithPublicMediaURLs(d.Content)
+	if e != nil {
+		a.fail(w, e)
+		return
+	}
+	w.Header().Set("Cache-Control", "private, no-store")
 	writeJSON(w, 200, d.Content)
 }
 func (a *App) login(w http.ResponseWriter, r *http.Request) {
@@ -178,7 +204,7 @@ func (a *App) login(w http.ResponseWriter, r *http.Request) {
 	}
 	hash, ok := a.store.UserHash(p.Username)
 	if !ok || bcrypt.CompareHashAndPassword([]byte(hash), []byte(p.Password)) != nil {
-		_ = a.store.Log(AdminLog{Username: p.Username, Action: "login_failed", TargetType: "session", Detail: "登录验证失败", IPAddress: clientIP(r)})
+		_ = a.store.Log(AdminLog{Username: p.Username, Action: "login_failed", TargetType: "session", Detail: "登录验证失败", IPAddress: accessClientIP(r), RequestID: requestIDFrom(r)})
 		writeJSON(w, 401, object{"error": "用户名或密码错误"})
 		return
 	}
@@ -210,6 +236,12 @@ func (a *App) preview(w http.ResponseWriter, r *http.Request) {
 		a.fail(w, e)
 		return
 	}
+	d.Content, e = a.contentWithPublicMediaURLs(d.Content)
+	if e != nil {
+		a.fail(w, e)
+		return
+	}
+	w.Header().Set("Cache-Control", "private, no-store")
 	writeJSON(w, 200, d.Content)
 }
 func (a *App) bootstrap(w http.ResponseWriter, r *http.Request) {
@@ -218,6 +250,7 @@ func (a *App) bootstrap(w http.ResponseWriter, r *http.Request) {
 		a.fail(w, e)
 		return
 	}
+	w.Header().Set("Cache-Control", "private, no-store")
 	writeJSON(w, 200, p)
 }
 func (a *App) saveContent(w http.ResponseWriter, r *http.Request) {
@@ -247,12 +280,21 @@ func (a *App) publish(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, 400, object{"error": strings.Join(issues, "；")})
 		return
 	}
+	if e = a.validateSiteIcon(d.Content); e != nil {
+		writeJSON(w, 400, object{"error": e.Error()})
+		return
+	}
 	result, e := a.store.Publish(adminName(r))
 	if e != nil {
 		a.fail(w, e)
 		return
 	}
 	changed, _ := result["changed"].(bool)
+	if changed {
+		a.iconMu.Lock()
+		a.iconCache = map[string][]byte{}
+		a.iconMu.Unlock()
+	}
 	id := fmt.Sprint(result["id"])
 	if !changed {
 		id = ""
@@ -311,7 +353,9 @@ func (a *App) updateStorage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	a.audit(r, "storage_updated", "setting", "storage_provider", previous+" → "+provider)
-	writeJSON(w, 200, a.storageStatus())
+	status := a.storageStatus()
+	status["vod"] = a.vodStatus()
+	writeJSON(w, 200, status)
 }
 func (a *App) export(w http.ResponseWriter, r *http.Request) {
 	draft, e := a.store.GetDocument("draft")
@@ -346,8 +390,9 @@ func (a *App) export(w http.ResponseWriter, r *http.Request) {
 	enc.SetEscapeHTML(false)
 	enc.SetIndent("", "  ")
 	publicMedia := make([]object, 0, len(media))
+	cfg := a.cosConfig()
 	for _, m := range media {
-		publicMedia = append(publicMedia, publicMediaObject(m))
+		publicMedia = append(publicMedia, publicMediaObject(m, cfg))
 	}
 	_ = enc.Encode(object{"exportedAt": time.Now().UTC().Format(time.RFC3339Nano), "draft": draft, "published": published, "revisions": revs, "logs": logs, "media": publicMedia})
 }
@@ -374,23 +419,47 @@ func (a *App) adminPayload() (object, error) {
 		return nil, e
 	}
 	items := make([]object, 0, len(media))
+	cfg := a.cosConfig()
 	for _, m := range media {
-		item := publicMediaObject(m)
+		item := publicMediaObject(m, cfg)
+		display, err := signedPublicMedia(m, cfg)
+		if err != nil {
+			return nil, err
+		}
+		item["originalDisplayUrl"] = display.OriginalURL
+		item["optimizedDisplayUrl"] = display.OptimizedURL
 		item["originalName"] = normalizeUploadFilename(m.OriginalName)
 		item["references"] = a.referencedBy(m)
 		items = append(items, item)
 	}
-	return object{"content": draft.Content, "draftUpdatedAt": draft.UpdatedAt, "publishedUpdatedAt": published.UpdatedAt, "versionState": object{"draftHash": draft.Hash, "publishedHash": published.Hash, "hasUnpublishedChanges": draft.Hash != published.Hash}, "frontendUrl": os.Getenv("FRONTEND_URL"), "revisions": revs, "media": items, "settings": a.storageStatus(), "logs": logs, "stats": object{"experiences": len(asArray(draft.Content["experiences"])), "caseStudies": len(asArray(draft.Content["caseStudies"])), "projects": len(asArray(draft.Content["projects"])), "media": len(media)}}, nil
+	settings := a.storageStatus()
+	settings["vod"] = a.vodStatus()
+	return object{"content": draft.Content, "draftUpdatedAt": draft.UpdatedAt, "publishedUpdatedAt": published.UpdatedAt, "versionState": object{"draftHash": draft.Hash, "publishedHash": published.Hash, "hasUnpublishedChanges": draft.Hash != published.Hash}, "frontendUrl": os.Getenv("FRONTEND_URL"), "revisions": revs, "media": items, "settings": settings, "logs": logs, "stats": object{"experiences": len(asArray(draft.Content["experiences"])), "caseStudies": len(asArray(draft.Content["caseStudies"])), "projects": len(asArray(draft.Content["projects"])), "media": len(media)}}, nil
 }
 func (a *App) referencedBy(m Media) []string {
 	hits := make([]string, 0)
+	public := effectivePublicMedia(m, a.cosConfig())
+	candidates := []string{m.OptimizedURL, m.OriginalURL, public.OptimizedURL, public.OriginalURL}
+	if m.OptimizedKey != "" {
+		candidates = append(candidates, "/"+m.OptimizedKey)
+	}
+	if m.OriginalKey != "" {
+		candidates = append(candidates, "/"+m.OriginalKey)
+	}
 	for _, name := range []string{"draft", "published"} {
 		d, e := a.store.GetDocument(name)
 		if e != nil {
 			continue
 		}
 		b, _ := json.Marshal(d.Content)
-		if strings.Contains(string(b), m.OptimizedURL) || strings.Contains(string(b), m.OriginalURL) {
+		referenced := siteIconMediaID(d.Content) == m.ID
+		for _, candidate := range candidates {
+			if candidate != "" && strings.Contains(string(b), candidate) {
+				referenced = true
+				break
+			}
+		}
+		if referenced {
 			if name == "draft" {
 				hits = append(hits, "草稿")
 			} else {
@@ -401,11 +470,111 @@ func (a *App) referencedBy(m Media) []string {
 	return hits
 }
 
-func publicMediaObject(m Media) object {
+func effectivePublicMedia(m Media, cfg cosConfiguration) Media {
+	if m.Storage == "cos" && cfg.PublicBase != "" {
+		if m.OriginalKey != "" {
+			m.OriginalURL = publicCOSURL(m.OriginalKey, cfg)
+		}
+		if m.OptimizedKey != "" {
+			m.OptimizedURL = publicCOSURL(m.OptimizedKey, cfg)
+		}
+	}
+	return m
+}
+
+func signedPublicMedia(m Media, cfg cosConfiguration) (Media, error) {
+	m = effectivePublicMedia(m, cfg)
+	if m.Storage != "cos" || !cfg.Ready {
+		return m, nil
+	}
+	var err error
+	if m.OriginalKey != "" {
+		m.OriginalURL, err = signedCOSURL(m.OriginalKey, cfg)
+		if err != nil {
+			return Media{}, err
+		}
+	}
+	if m.OptimizedKey != "" {
+		m.OptimizedURL, err = signedCOSURL(m.OptimizedKey, cfg)
+		if err != nil {
+			return Media{}, err
+		}
+	}
+	return m, nil
+}
+
+func rewriteMediaURLs(content object, media []Media, cfg cosConfiguration) error {
+	replacements := make(map[string]string)
+	keyReplacements := make(map[string]string)
+	for _, stored := range media {
+		stable := effectivePublicMedia(stored, cfg)
+		public, err := signedPublicMedia(stored, cfg)
+		if err != nil {
+			return err
+		}
+		if stored.OriginalURL != "" && stored.OriginalURL != public.OriginalURL {
+			replacements[stored.OriginalURL] = public.OriginalURL
+		}
+		if stored.OptimizedURL != "" && stored.OptimizedURL != public.OptimizedURL {
+			replacements[stored.OptimizedURL] = public.OptimizedURL
+		}
+		if stable.OriginalURL != "" && stable.OriginalURL != public.OriginalURL {
+			replacements[stable.OriginalURL] = public.OriginalURL
+		}
+		if stable.OptimizedURL != "" && stable.OptimizedURL != public.OptimizedURL {
+			replacements[stable.OptimizedURL] = public.OptimizedURL
+		}
+		if stored.OriginalKey != "" {
+			keyReplacements["/"+stored.OriginalKey] = public.OriginalURL
+		}
+		if stored.OptimizedKey != "" {
+			keyReplacements["/"+stored.OptimizedKey] = public.OptimizedURL
+		}
+	}
+	var rewrite func(any) any
+	rewrite = func(value any) any {
+		switch typed := value.(type) {
+		case map[string]any:
+			for key, child := range typed {
+				typed[key] = rewrite(child)
+			}
+		case []any:
+			for index, child := range typed {
+				typed[index] = rewrite(child)
+			}
+		case string:
+			if replacement, ok := replacements[typed]; ok {
+				return replacement
+			}
+			if parsed, err := url.Parse(typed); err == nil {
+				if replacement, ok := keyReplacements[parsed.Path]; ok {
+					return replacement
+				}
+			}
+		}
+		return value
+	}
+	rewrite(content)
+	return nil
+}
+
+func (a *App) contentWithPublicMediaURLs(content object) (object, error) {
+	media, err := a.store.ListMedia()
+	if err != nil {
+		return nil, err
+	}
+	if err = rewriteMediaURLs(content, media, a.cosConfig()); err != nil {
+		return nil, err
+	}
+	return content, nil
+}
+
+func publicMediaObject(m Media, cfg cosConfiguration) object {
+	m = effectivePublicMedia(m, cfg)
 	return object{"id": m.ID, "originalName": m.OriginalName, "storage": m.Storage, "originalUrl": m.OriginalURL, "optimizedUrl": m.OptimizedURL, "mimeType": m.MimeType, "width": m.Width, "height": m.Height, "size": m.Size, "createdAt": m.CreatedAt}
 }
 func (a *App) fail(w http.ResponseWriter, e error) {
-	log.Printf("request failed: %v", e)
+	log.Printf("request failed request_id=%s: %v", w.Header().Get("X-Request-ID"), e)
 	writeJSON(w, 500, object{"error": "服务器处理失败"})
 }
 
@@ -455,7 +624,7 @@ func (a *App) sitemap(w http.ResponseWriter, r *http.Request) {
 	urls := []string{base + "/"}
 	for _, raw := range asArray(d.Content["projects"]) {
 		item := asObject(raw)
-		if boolValue(item["published"], true) && stringValue(item["type"]) == "video" && stringValue(item["videoUrl"]) != "" {
+		if boolValue(item["published"], true) && stringValue(item["type"]) == "video" && stringValue(item["vodFileId"]) != "" {
 			urls = append(urls, base+"/video.html?id="+encodeURIComponent(stringValue(item["id"])))
 		}
 	}
@@ -475,6 +644,7 @@ var namedMetaRE = regexp.MustCompile(`(?i)<meta\s+name="(?:keywords|author|robot
 var ogRE = regexp.MustCompile(`(?i)<meta\s+property="og:[^"]+"[^>]*>`)
 var twitterRE = regexp.MustCompile(`(?i)<meta\s+name="twitter:[^"]+"[^>]*>`)
 var canonicalRE = regexp.MustCompile(`(?i)<link\s+rel="canonical"[^>]*>`)
+var appIconLinkRE = regexp.MustCompile(`(?i)<link\s+rel="(?:icon|apple-touch-icon|manifest)"[^>]*>`)
 var schemaRE = regexp.MustCompile(`(?is)<script\s+type="application/ld\+json"[^>]*>.*?</script>`)
 
 func (a *App) renderPage(w http.ResponseWriter, r *http.Request, name string, isVideo bool) {
@@ -483,7 +653,11 @@ func (a *App) renderPage(w http.ResponseWriter, r *http.Request, name string, is
 		a.fail(w, e)
 		return
 	}
-	content := d.Content
+	content, e := a.contentWithPublicMediaURLs(d.Content)
+	if e != nil {
+		a.fail(w, e)
+		return
+	}
 	seo := asObject(content["seo"])
 	base := publicBaseURL(r, seo)
 	var project object
@@ -522,6 +696,19 @@ func (a *App) renderPage(w http.ResponseWriter, r *http.Request, name string, is
 	}
 	esc := html.EscapeString
 	tags := []string{"<title>" + esc(title) + "</title>", `<meta name="description" content="` + esc(description) + `">`}
+	iconVersion := d.Hash
+	if len(iconVersion) > 12 {
+		iconVersion = iconVersion[:12]
+	}
+	if siteIconMediaID(content) > 0 {
+		tags = append(tags,
+			`<link rel="icon" type="image/png" sizes="32x32" href="/icons/site-32.png?v=`+iconVersion+`">`,
+			`<link rel="apple-touch-icon" sizes="180x180" href="/icons/site-180.png?v=`+iconVersion+`">`,
+		)
+	} else {
+		tags = append(tags, `<link rel="icon" href="/assets/images/logo.ico">`)
+	}
+	tags = append(tags, `<link rel="manifest" href="/site.webmanifest?v=`+iconVersion+`">`)
 	if v := stringValue(seo["keywords"]); v != "" {
 		tags = append(tags, `<meta name="keywords" content="`+esc(v)+`">`)
 	}
@@ -558,10 +745,11 @@ func (a *App) renderPage(w http.ResponseWriter, r *http.Request, name string, is
 		return
 	}
 	page := string(raw)
-	for _, re := range []*regexp.Regexp{titleRE, descriptionRE, namedMetaRE, ogRE, twitterRE, canonicalRE, schemaRE} {
+	for _, re := range []*regexp.Regexp{titleRE, descriptionRE, namedMetaRE, ogRE, twitterRE, canonicalRE, schemaRE, appIconLinkRE} {
 		page = re.ReplaceAllString(page, "")
 	}
 	page = strings.Replace(page, "</head>", strings.Join(tags, "")+"\n</head>", 1)
+	w.Header().Set("Cache-Control", "private, no-store")
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	io.WriteString(w, page)
 }

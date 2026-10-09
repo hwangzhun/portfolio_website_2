@@ -66,6 +66,7 @@ func run() error {
 		return err
 	}
 	port := env("API_PORT", env("PORT", "8787"))
+	app.recordStartup(port)
 	srv := &http.Server{Addr: ":" + port, Handler: app, ReadHeaderTimeout: 10 * time.Second, ReadTimeout: 30 * time.Second, WriteTimeout: 120 * time.Second, IdleTimeout: 120 * time.Second}
 	errCh := make(chan error, 1)
 	go func() {

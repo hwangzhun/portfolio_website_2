@@ -30,9 +30,10 @@ import (
 )
 
 type cosConfiguration struct {
-	Ready               bool
-	Missing             []string
-	Bucket, Region, CDN string
+	Ready                      bool
+	Missing                    []string
+	Bucket, Region, PublicBase string
+	SignedURLTTL               time.Duration
 }
 
 var cosEndpointOverride string
@@ -45,17 +46,69 @@ func (a *App) cosConfig() cosConfiguration {
 			missing = append(missing, k)
 		}
 	}
-	return cosConfiguration{len(missing) == 0, missing, os.Getenv("TENCENT_COS_BUCKET"), os.Getenv("TENCENT_COS_REGION"), strings.TrimSuffix(os.Getenv("TENCENT_COS_CDN_URL"), "/")}
+	publicVariable := "TENCENT_COS_CUSTOM_DOMAIN"
+	publicRaw := strings.TrimSpace(os.Getenv(publicVariable))
+	if publicRaw == "" {
+		publicVariable = "TENCENT_COS_CDN_URL"
+		publicRaw = strings.TrimSpace(os.Getenv(publicVariable))
+	}
+	publicBase := normalizeCOSPublicBase(publicRaw)
+	if publicRaw != "" && publicBase == "" {
+		missing = append(missing, publicVariable+" (invalid URL)")
+	}
+	signedURLTTL := time.Hour
+	if raw := strings.TrimSpace(os.Getenv("TENCENT_COS_SIGNED_URL_TTL")); raw != "" {
+		parsed, err := time.ParseDuration(raw)
+		if err != nil || parsed < time.Minute || parsed > 24*time.Hour {
+			missing = append(missing, "TENCENT_COS_SIGNED_URL_TTL (must be between 1m and 24h)")
+		} else {
+			signedURLTTL = parsed
+		}
+	}
+	return cosConfiguration{Ready: len(missing) == 0, Missing: missing, Bucket: os.Getenv("TENCENT_COS_BUCKET"), Region: os.Getenv("TENCENT_COS_REGION"), PublicBase: publicBase, SignedURLTTL: signedURLTTL}
 }
 func (a *App) storageStatus() object {
 	c := a.cosConfig()
-	return object{"provider": fallbackString(a.store.Setting("storage_provider"), "local"), "local": object{"ready": true, "directory": a.uploadDir}, "cos": object{"ready": c.Ready, "missing": c.Missing, "bucket": c.Bucket, "region": c.Region}}
+	return object{"provider": fallbackString(a.store.Setting("storage_provider"), "local"), "local": object{"ready": true, "directory": a.uploadDir}, "cos": object{"ready": c.Ready, "missing": c.Missing, "bucket": c.Bucket, "region": c.Region, "publicBase": c.PublicBase, "signedUrlTTL": c.SignedURLTTL.String()}}
+}
+func normalizeCOSPublicBase(raw string) string {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return ""
+	}
+	if !strings.Contains(raw, "://") {
+		raw = "https://" + raw
+	}
+	u, err := url.Parse(raw)
+	if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" || u.User != nil {
+		return ""
+	}
+	u.RawQuery = ""
+	u.Fragment = ""
+	u.Path = strings.TrimSuffix(u.Path, "/")
+	return strings.TrimSuffix(u.String(), "/")
 }
 func publicCOSURL(key string, c cosConfiguration) string {
-	if c.CDN != "" {
-		return c.CDN + "/" + key
+	if c.PublicBase != "" {
+		return c.PublicBase + "/" + key
 	}
 	return fmt.Sprintf("https://%s.cos.%s.myqcloud.com/%s", c.Bucket, c.Region, key)
+}
+func signedCOSURL(key string, c cosConfiguration) (string, error) {
+	if !c.Ready || key == "" {
+		return publicCOSURL(key, c), nil
+	}
+	endpoint := strings.TrimSuffix(publicCOSURL("", c), "/")
+	u, err := url.Parse(endpoint)
+	if err != nil {
+		return "", err
+	}
+	client := cos.NewClient(&cos.BaseURL{BucketURL: u}, &http.Client{Timeout: 10 * time.Second})
+	signed, err := client.Object.GetPresignedURL(context.Background(), http.MethodGet, key, os.Getenv("TENCENT_COS_SECRET_ID"), os.Getenv("TENCENT_COS_SECRET_KEY"), c.SignedURLTTL, nil)
+	if err != nil {
+		return "", err
+	}
+	return signed.String(), nil
 }
 func cosClient(c cosConfiguration) (*cos.Client, error) {
 	endpoint := fmt.Sprintf("https://%s.cos.%s.myqcloud.com", c.Bucket, c.Region)

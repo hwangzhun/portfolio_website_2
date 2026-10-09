@@ -108,6 +108,70 @@
         min-height: 104px;
         resize: vertical;
       }
+      .markdown-editor {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 12px;
+      }
+      .markdown-editor textarea {
+        min-height: 220px;
+        font: 13px/1.65 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      }
+      .markdown-preview {
+        min-height: 220px;
+        overflow-wrap: anywhere;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        background: #fff;
+        padding: 12px 14px;
+      }
+      .markdown-preview-label {
+        display: block;
+        margin-bottom: 12px;
+        color: var(--muted);
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+      }
+      .markdown-content {
+        font-size: 14px;
+        line-height: 1.65;
+      }
+      .markdown-content p,
+      .markdown-content ul,
+      .markdown-content ol {
+        margin: 0 0 10px;
+      }
+      .markdown-content p:last-child,
+      .markdown-content ul:last-child,
+      .markdown-content ol:last-child {
+        margin-bottom: 0;
+      }
+      .markdown-content > * + * {
+        margin-top: 14px;
+      }
+      .markdown-content > ul + p,
+      .markdown-content > ol + p {
+        margin-top: 24px;
+      }
+      .markdown-content > ol + ul,
+      .markdown-content > ol + ol {
+        margin-top: 28px;
+      }
+      .markdown-content ul,
+      .markdown-content ol {
+        padding-left: 1.4em;
+      }
+      .markdown-content a {
+        color: var(--clay2);
+        text-underline-offset: 3px;
+      }
+      .markdown-content code {
+        border-radius: 4px;
+        background: var(--canvas);
+        padding: 0.12em 0.36em;
+        font: 0.88em/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      }
       .btn {
         border: 1px solid var(--line);
         background: var(--paper);
@@ -440,6 +504,27 @@
       .thumb[src] {
         display: block;
       }
+      .site-icon-setting {
+        display: grid;
+        grid-template-columns: 120px 1fr;
+        gap: 20px;
+        align-items: center;
+      }
+      .site-icon-preview {
+        width: 120px;
+        aspect-ratio: 1;
+        border: 1px solid var(--line);
+        border-radius: 24px;
+        background: var(--paper);
+        object-fit: contain;
+        padding: 10px;
+      }
+      .site-icon-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 12px;
+      }
       .mobile-nav {
         display: none;
       }
@@ -469,6 +554,9 @@
         .stats,
         .media-grid {
           grid-template-columns: repeat(2, 1fr);
+        }
+        .markdown-editor {
+          grid-template-columns: 1fr;
         }
       }
       @media (max-width: 560px) {
@@ -500,6 +588,9 @@
         }
         .storage-choice {
           display: grid;
+        }
+        .site-icon-setting {
+          grid-template-columns: 1fr;
         }
       }
       .revision-list {
@@ -735,7 +826,7 @@
           ><button class="nav-button" data-view="media">媒体库</button
           ><button class="nav-button" data-view="seo">SEO 设置</button
           ><button class="nav-button" data-view="settings">设置与备份</button
-          ><button class="nav-button" data-view="logs">操作日志</button>
+          ><button class="nav-button" data-view="logs">系统日志</button>
         </nav>
         <div class="sidebar-bottom">
           <button id="previewSide" class="nav-button">预览草稿 ↗</button
@@ -1104,19 +1195,38 @@
                 </label>
               </div>
             </div>
+            <div class="card section-card">
+              <h2>网站与应用图标</h2>
+              <p class="muted">只需设置一张原图，发布后会自动生成浏览器、Apple Touch 和 Web App Manifest 所需尺寸。</p>
+              <div class="site-icon-setting">
+                <img id="siteIconImage" class="site-icon-preview" src="/assets/images/logo.ico" alt="网站图标预览" />
+                <div>
+                  <strong id="siteIconName">尚未设置自定义图标</strong>
+                  <p id="siteIconMeta" class="muted">建议使用不小于 512×512 的正方形 PNG，主要内容居中并留出边距。</p>
+                  <div class="site-icon-actions">
+                    <button id="chooseSiteIcon" class="btn btn-sm">从媒体库选择</button>
+                    <button id="uploadSiteIcon" class="btn btn-sm">上传图标</button>
+                    <button id="clearSiteIcon" class="btn btn-sm btn-danger">恢复默认</button>
+                    <input id="siteIconFile" class="hidden" type="file" accept="image/jpeg,image/png,image/webp" />
+                  </div>
+                </div>
+              </div>
+            </div>
           </section>
           <section class="view" data-panel="logs">
-            <p class="eyebrow">AUDIT LOG</p>
-            <h1 class="page-title">操作日志</h1>
+            <p class="eyebrow">ACCESS, AUDIT & DIAGNOSTICS</p>
+            <h1 class="page-title">系统日志</h1>
             <p class="page-description">
-              查看后台关键操作、操作者、来源地址与执行时间，最近记录优先显示。
+              查看 HTTP 访问、后台操作、VOD 配置下发与前端播放错误。可用请求 ID 串联服务端和浏览器记录。
             </p>
+            <button id="refreshLogs" class="btn btn-sm" style="margin-bottom: 18px">刷新日志</button>
             <div id="adminLogs"></div>
           </section>
         </div>
       </main>
     </div>
     <div id="toast" class="toast" role="status"></div>
+    <script src="/assets/js/markdown.js"></script>
     <script>
       const $ = (s) => document.querySelector(s),
         $$ = (s) => [...document.querySelectorAll(s)];
@@ -1211,26 +1321,50 @@
           (img) => (img.src = resolveUrl(getPath(img.dataset.thumb) || "")),
         );
       }
+      function iconEligible(item) {
+        return !!item && item.width === item.height && item.width >= 512 &&
+          ["image/jpeg", "image/png", "image/webp"].includes(item.mimeType);
+      }
+      function renderSiteIcon() {
+        const id = Number(content.siteIcon?.mediaId || 0);
+        const item = (payload.media || []).find((media) => media.id === id);
+        const image = $("#siteIconImage");
+        if (item) {
+          image.src = resolveUrl(item.originalDisplayUrl || item.originalUrl);
+          $("#siteIconName").textContent = item.originalName;
+          $("#siteIconMeta").textContent = `${item.width}×${item.height} · ${item.mimeType} · 发布后自动生成 32、180、192 和 512 像素版本。`;
+          $("#clearSiteIcon").disabled = false;
+        } else {
+          image.src = "/assets/images/logo.ico";
+          $("#siteIconName").textContent = "尚未设置自定义图标";
+          $("#siteIconMeta").textContent = "建议使用不小于 512×512 的正方形 PNG，主要内容居中并留出边距。";
+          $("#clearSiteIcon").disabled = true;
+        }
+      }
       function itemButtons(type, index) {
         return `<div class="item-actions"><button class="btn btn-sm" data-move="${type}:${index}:-1" aria-label="上移">↑</button><button class="btn btn-sm" data-move="${type}:${index}:1" aria-label="下移">↓</button><button class="btn btn-sm btn-danger" data-remove="${type}:${index}">删除</button></div>`;
+      }
+      function markdownEditor(type, index, label) {
+        const value = content[type][index].detailsMarkdown || "";
+        return `<div class="field span-2"><label>${label}（Markdown）</label><div class="markdown-editor"><textarea data-markdown="${type}:${index}" spellcheck="false" placeholder="- **工作内容：**描述你负责的工作\n- **工作成果：**描述可量化的成果">${esc(value)}</textarea><div class="markdown-preview"><span class="markdown-preview-label">实时预览</span><div class="markdown-content" data-markdown-preview="${type}:${index}">${window.PortfolioMarkdown.render(value)}</div></div></div><small>支持段落、换行、列表、**粗体**、*斜体*、[链接](https://example.com) 和 \`行内代码\`。</small></div>`;
       }
       function renderRepeats() {
         $("#experienceList").innerHTML = content.experiences
           .map(
             (item, i) =>
-              `<article class="repeat-item"><div class="item-head"><h3>${esc(item.company || "未命名工作经历")}</h3>${itemButtons("experiences", i)}</div><div class="form-grid"><div class="field"><label>起始时间</label><input data-item="experiences:${i}:startDate" value="${esc(item.startDate)}" placeholder="例如：2022.03"></div><div class="field"><label>结束时间</label><input data-item="experiences:${i}:endDate" value="${esc(item.endDate)}" placeholder="例如：现在"></div><div class="field span-2"><label>公司</label><input data-item="experiences:${i}:company" value="${esc(item.company)}"></div><div class="field"><label>所在部门</label><input data-item="experiences:${i}:department" value="${esc(item.department)}"></div><div class="field"><label>岗位职称</label><input data-item="experiences:${i}:role" value="${esc(item.role)}"></div><div class="field span-2"><label>工作内容与成就（每行一条）</label><textarea data-details="experiences:${i}">${esc((item.details || []).join("\n"))}</textarea></div><label class="check span-2"><input type="checkbox" data-visible="experiences:${i}" ${item.visible !== false ? "checked" : ""}> 前台显示</label></div></article>`,
+              `<article class="repeat-item"><div class="item-head"><h3>${esc(item.company || "未命名工作经历")}</h3>${itemButtons("experiences", i)}</div><div class="form-grid"><div class="field"><label>起始时间</label><input data-item="experiences:${i}:startDate" value="${esc(item.startDate)}" placeholder="例如：2022.03"></div><div class="field"><label>结束时间</label><input data-item="experiences:${i}:endDate" value="${esc(item.endDate)}" placeholder="例如：现在"></div><div class="field span-2"><label>公司</label><input data-item="experiences:${i}:company" value="${esc(item.company)}"></div><div class="field"><label>所在部门</label><input data-item="experiences:${i}:department" value="${esc(item.department)}"></div><div class="field"><label>岗位职称</label><input data-item="experiences:${i}:role" value="${esc(item.role)}"></div>${markdownEditor("experiences", i, "工作内容与成就")}<label class="check span-2"><input type="checkbox" data-visible="experiences:${i}" ${item.visible !== false ? "checked" : ""}> 前台显示</label></div></article>`,
           )
           .join("");
         $("#caseList").innerHTML = content.caseStudies
           .map(
             (item, i) =>
-              `<article class="repeat-item"><div class="item-head"><h3>${esc(item.title || "未命名项目")}</h3>${itemButtons("caseStudies", i)}</div><div class="form-grid"><div class="field"><label>年份</label><input data-item="caseStudies:${i}:period" value="${esc(item.period)}"></div><div class="field"><label>项目名称</label><input data-item="caseStudies:${i}:title" value="${esc(item.title)}"></div><div class="field span-2"><label>项目角色</label><input data-item="caseStudies:${i}:role" value="${esc(item.role)}"></div><div class="field span-2"><label>项目链接</label><input data-item="caseStudies:${i}:link" value="${esc(item.link)}"></div><div class="field span-2"><label>工作内容与成果（每行一条）</label><textarea data-details="caseStudies:${i}">${esc((item.details || []).join("\n"))}</textarea></div><label class="check span-2"><input type="checkbox" data-visible="caseStudies:${i}" ${item.visible !== false ? "checked" : ""}> 前台显示</label></div></article>`,
+              `<article class="repeat-item"><div class="item-head"><h3>${esc(item.title || "未命名项目")}</h3>${itemButtons("caseStudies", i)}</div><div class="form-grid"><div class="field"><label>年份</label><input data-item="caseStudies:${i}:period" value="${esc(item.period)}"></div><div class="field"><label>项目名称</label><input data-item="caseStudies:${i}:title" value="${esc(item.title)}"></div><div class="field span-2"><label>项目角色</label><input data-item="caseStudies:${i}:role" value="${esc(item.role)}"></div><div class="field span-2"><label>项目链接</label><input data-item="caseStudies:${i}:link" value="${esc(item.link)}"></div>${markdownEditor("caseStudies", i, "工作内容与成果")}<label class="check span-2"><input type="checkbox" data-visible="caseStudies:${i}" ${item.visible !== false ? "checked" : ""}> 前台显示</label></div></article>`,
           )
           .join("");
         $("#projectList").innerHTML = content.projects
           .map(
             (item, i) =>
-              `<article class="repeat-item"><div class="item-head"><div><h3>${esc(item.title || "未命名作品")}</h3><span class="muted">${item.type === "video" ? "站内视频" : "外部照片"}</span></div>${itemButtons("projects", i)}</div><div class="form-grid"><div class="field"><label>作品类型</label><select data-item="projects:${i}:type"><option value="photo" ${item.type === "photo" ? "selected" : ""}>照片 · 跳转外部网站</option><option value="video" ${item.type === "video" ? "selected" : ""}>视频 · 站内详情页</option></select></div><div class="field"><label>标题</label><input data-item="projects:${i}:title" value="${esc(item.title)}"></div><div class="field"><label>分类</label><input data-item="projects:${i}:category" value="${esc(item.category)}"></div><div class="field"><label>年份</label><input data-item="projects:${i}:year" value="${esc(item.year)}"></div><div class="field span-2"><label>职责说明</label><input data-item="projects:${i}:meta" value="${esc(item.meta)}"></div><div class="field span-2"><label>项目介绍</label><textarea data-item="projects:${i}:description" placeholder="介绍项目背景、创作目标或你的工作内容">${esc(item.description)}</textarea></div>${item.type === "video" ? `<div class="field span-2"><label>MP4 / 腾讯 VOD 播放地址</label><input data-item="projects:${i}:videoUrl" value="${esc(item.videoUrl)}" placeholder="https://.../video.mp4"><small>视频会在本站独立详情页中播放。</small></div>` : `<div class="field span-2"><label>照片外部网站地址</label><input data-item="projects:${i}:externalUrl" value="${esc(item.externalUrl)}" placeholder="https://"><small>点击作品后会在新标签页打开。</small></div>`}<div class="field span-2"><label>封面图片</label><div class="cover-row"><input data-item="projects:${i}:coverUrl" value="${esc(item.coverUrl)}"><button class="btn btn-sm" data-pick="projects.${i}.coverUrl">从媒体库选择</button></div>${item.coverUrl ? `<img class="thumb" src="${esc(resolveUrl(item.coverUrl))}" alt="封面预览">` : ""}</div><label class="check"><input type="checkbox" data-boolean="projects:${i}:featured" ${item.featured ? "checked" : ""}> 大卡片展示</label><label class="check"><input type="checkbox" data-boolean="projects:${i}:published" ${item.published !== false ? "checked" : ""}> 发布此作品</label></div></article>`,
+              `<article class="repeat-item"><div class="item-head"><div><h3>${esc(item.title || "未命名作品")}</h3><span class="muted">${item.type === "video" ? "站内视频" : "外部照片"}</span></div>${itemButtons("projects", i)}</div><div class="form-grid"><div class="field"><label>作品类型</label><select data-item="projects:${i}:type"><option value="photo" ${item.type === "photo" ? "selected" : ""}>照片 · 跳转外部网站</option><option value="video" ${item.type === "video" ? "selected" : ""}>视频 · 站内详情页</option></select></div><div class="field"><label>标题</label><input data-item="projects:${i}:title" value="${esc(item.title)}"></div><div class="field"><label>分类</label><input data-item="projects:${i}:category" value="${esc(item.category)}"></div><div class="field"><label>年份</label><input data-item="projects:${i}:year" value="${esc(item.year)}"></div><div class="field span-2"><label>职责说明</label><input data-item="projects:${i}:meta" value="${esc(item.meta)}"></div><div class="field span-2"><label>项目介绍</label><textarea data-item="projects:${i}:description" placeholder="介绍项目背景、创作目标或你的工作内容">${esc(item.description)}</textarea></div>${item.type === "video" ? `<div class="field span-2"><label>腾讯云 VOD FileID</label><input data-item="projects:${i}:vodFileId" value="${esc(item.vodFileId)}" placeholder="例如：387702307091793695"><small>在腾讯云点播控制台的媒资管理中复制 FileID。</small></div>` : `<div class="field span-2"><label>照片外部网站地址</label><input data-item="projects:${i}:externalUrl" value="${esc(item.externalUrl)}" placeholder="https://"><small>点击作品后会在新标签页打开。</small></div>`}<div class="field span-2"><label>封面图片</label><div class="cover-row"><input data-item="projects:${i}:coverUrl" value="${esc(item.coverUrl)}"><button class="btn btn-sm" data-pick="projects.${i}.coverUrl">从媒体库选择</button></div>${item.coverUrl ? `<img class="thumb" src="${esc(resolveUrl(item.coverUrl))}" alt="封面预览">` : ""}</div><label class="check"><input type="checkbox" data-boolean="projects:${i}:featured" ${item.featured ? "checked" : ""}> 大卡片展示</label><label class="check"><input type="checkbox" data-boolean="projects:${i}:published" ${item.published !== false ? "checked" : ""}> 发布此作品</label></div></article>`,
           )
           .join("");
         $("#softwareList").innerHTML = content.software
@@ -1257,14 +1391,14 @@
               if (type === "projects" && key === "type") renderRepeats();
             }),
         );
-        $$("[data-details]").forEach(
+        $$("[data-markdown]").forEach(
           (el) =>
             (el.oninput = () => {
-              const [type, index] = el.dataset.details.split(":");
-              content[type][index].details = el.value
-                .split("\n")
-                .map((v) => v.trim())
-                .filter(Boolean);
+              const [type, index] = el.dataset.markdown.split(":");
+              content[type][index].detailsMarkdown = el.value;
+              const preview = $(`[data-markdown-preview="${type}:${index}"]`);
+              if (preview)
+                preview.innerHTML = window.PortfolioMarkdown.render(el.value);
               markDirty();
             }),
         );
@@ -1323,7 +1457,7 @@
             company: "新工作经历",
             department: "",
             role: "",
-            details: [],
+            detailsMarkdown: "",
             visible: true,
           });
         if (type === "caseStudies")
@@ -1332,7 +1466,7 @@
             title: "新项目",
             role: "",
             link: "",
-            details: [],
+            detailsMarkdown: "",
             visible: true,
           });
         if (type === "projects")
@@ -1346,7 +1480,7 @@
             description: "",
             coverUrl: "",
             externalUrl: "",
-            videoUrl: "",
+            vodFileId: "",
             featured: false,
             published: true,
           });
@@ -1359,6 +1493,26 @@
       }
       function resolveUrl(url) {
         if (!url) return "";
+        const path = (() => {
+          try { return new URL(url, location.origin).pathname; } catch (_) { return ""; }
+        })();
+        const mediaItem = (payload?.media || []).find((item) => {
+          if (item.storage !== "cos") return false;
+          if (url === item.optimizedUrl || url === item.originalUrl) return true;
+          try {
+            return path === new URL(item.optimizedUrl).pathname || path === new URL(item.originalUrl).pathname;
+          } catch (_) {
+            return false;
+          }
+        });
+        if (mediaItem) {
+          const original = (() => {
+            try { return path === new URL(mediaItem.originalUrl).pathname; } catch (_) { return false; }
+          })();
+          return original
+            ? mediaItem.originalDisplayUrl || mediaItem.originalUrl
+            : mediaItem.optimizedDisplayUrl || mediaItem.optimizedUrl;
+        }
         if (/^https?:/.test(url)) return url;
         if (url.startsWith("/uploads/") || url.startsWith("/assets/"))
           return api + url;
@@ -1366,21 +1520,22 @@
       }
       function beginPicker(target) {
         picker = target;
-        $("#pickerTarget").textContent = target;
+        $("#pickerTarget").textContent =
+          target === "siteIcon.mediaId" ? "网站与应用图标" : target;
         $("#pickerNotice").classList.remove("hidden");
         showView("media");
       }
-      function chooseMedia(url) {
+      function chooseMedia(value) {
         const destination = picker?.startsWith("projects.")
           ? "projects"
           : picker?.startsWith("software.")
             ? "about"
             : picker?.startsWith("profile.")
               ? "profile"
-              : picker?.startsWith("seo.")
+              : picker?.startsWith("seo.") || picker === "siteIcon.mediaId"
                 ? "seo"
               : "hero";
-        setPath(picker, url);
+        setPath(picker, picker === "siteIcon.mediaId" ? Number(value) : value);
         toast("图片已选择，记得保存草稿");
         picker = null;
         $("#pickerNotice").classList.add("hidden");
@@ -1389,16 +1544,27 @@
       }
       function renderMedia() {
         const items = payload.media || [];
+        const choosingIcon = picker === "siteIcon.mediaId";
         $("#mediaCount").textContent = `${items.length} 张图片`;
         $("#mediaGrid").innerHTML =
           items
             .map(
-              (item) =>
-                `<article class="media-card"><img src="${esc(resolveUrl(item.optimizedUrl))}" alt="${esc(item.originalName)}"><div class="media-info"><div class="media-name" title="${esc(item.originalName)}">${esc(item.originalName)}</div><div class="media-meta">${item.width}×${item.height} · ${Math.round(item.size / 1024)} KB · ${item.storage.toUpperCase()}${item.references?.length ? " · 使用中" : ""}</div><div class="media-actions">${picker ? `<button class="btn btn-sm btn-primary" data-choose="${esc(item.optimizedUrl)}">选择</button>` : ""}<button class="btn btn-sm btn-danger" data-delete-media="${item.id}" ${item.references?.length ? "disabled" : ""}>删除</button></div></div></article>`,
+              (item) => {
+                const eligible = iconEligible(item);
+                const choose = picker
+                  ? choosingIcon
+                    ? `<button class="btn btn-sm btn-primary" data-choose-id="${item.id}" ${eligible ? "" : "disabled"}>${eligible ? "选择" : "需正方形 512px+"}</button>`
+                    : `<button class="btn btn-sm btn-primary" data-choose="${esc(item.optimizedUrl)}">选择</button>`
+                  : "";
+                return `<article class="media-card"><img src="${esc(resolveUrl(item.optimizedDisplayUrl || item.optimizedUrl))}" alt="${esc(item.originalName)}"><div class="media-info"><div class="media-name" title="${esc(item.originalName)}">${esc(item.originalName)}</div><div class="media-meta">${item.width}×${item.height} · ${Math.round(item.size / 1024)} KB · ${item.storage.toUpperCase()}${item.references?.length ? " · 使用中" : ""}</div><div class="media-actions">${choose}<button class="btn btn-sm btn-danger" data-delete-media="${item.id}" ${item.references?.length ? "disabled" : ""}>删除</button></div></div></article>`;
+              },
             )
             .join("") || '<p class="muted">还没有上传图片。</p>';
         $$("[data-choose]").forEach(
           (b) => (b.onclick = () => chooseMedia(b.dataset.choose)),
+        );
+        $$("[data-choose-id]").forEach(
+          (b) => (b.onclick = () => chooseMedia(b.dataset.chooseId)),
         );
         $$("[data-delete-media]").forEach(
           (b) =>
@@ -1420,7 +1586,12 @@
       function renderSettings() {
         const status = payload.settings;
         $("#storageChoices").innerHTML =
-          `<div class="storage-option"><label><input type="radio" name="storage" value="local" ${status.provider === "local" ? "checked" : ""}> 服务器本地</label><p class="muted">已就绪 · 新上传保存到持久化目录</p></div><div class="storage-option"><label><input type="radio" name="storage" value="cos" ${status.provider === "cos" ? "checked" : ""} ${status.cos.ready ? "" : "disabled"}> 腾讯云 COS</label><p class="muted">${status.cos.ready ? `已就绪 · ${esc(status.cos.bucket)}` : `未配置：${esc(status.cos.missing.join(", "))}`}</p></div>`;
+          `<div class="storage-option"><label><input type="radio" name="storage" value="local" ${status.provider === "local" ? "checked" : ""}> 服务器本地</label><p class="muted">已就绪 · 新上传保存到持久化目录</p></div><div class="storage-option"><label><input type="radio" name="storage" value="cos" ${status.provider === "cos" ? "checked" : ""} ${status.cos.ready ? "" : "disabled"}> 腾讯云 COS</label><p class="muted">${status.cos.ready ? `已就绪 · ${esc(status.cos.bucket)}${status.cos.publicBase ? ` · ${esc(status.cos.publicBase)}` : ""}` : `未配置：${esc(status.cos.missing.join(", "))}`}</p></div>`;
+        const vod = status.vod || { ready: false, missing: [] };
+        $("#storageChoices").insertAdjacentHTML(
+          "beforeend",
+          `<div class="storage-option"><strong>腾讯云 VOD 播放</strong><p class="muted">${vod.ready ? `已就绪 · AppID ${esc(vod.appId)} · 签名有效期 ${esc(vod.signatureTTL)}` : `未配置：${esc(vod.missing.join(", ") || "VOD 环境变量")}`}</p></div>`,
+        );
         $$('[name="storage"]').forEach(
           (r) =>
             (r.onchange = async () => {
@@ -1497,6 +1668,7 @@
       function renderLogs() {
         const actionLabels = {
           login_success: "登录成功",
+          system_start: "系统启动",
           login_failed: "登录失败",
           logout: "退出登录",
           draft_saved: "保存草稿",
@@ -1508,16 +1680,28 @@
           media_uploaded: "上传媒体",
           media_deleted: "删除媒体",
           backup_exported: "导出备份",
+          vod_client_error: "VOD 前端错误",
+          vod_playback_rejected: "VOD 作品不可播放",
+          vod_config_error: "VOD 配置错误",
+          vod_signing_error: "VOD 签名错误",
+          vod_playback_issued: "VOD 配置已下发",
+          media_client_error: "前台图片加载失败",
+          http_request: "HTTP 访问",
         };
         const rows = (payload.logs || [])
           .map(
             (log) =>
-              `<article class="log-row"><div><div class="log-action">${esc(actionLabels[log.action] || log.action)}</div><div class="log-meta">#${log.id}</div></div><div><strong>${esc(log.username)}</strong><div class="log-meta">${esc(log.ipAddress || "未知来源")}</div></div><div class="log-detail">${esc(log.detail || "—")} ${log.targetId ? `<span class="log-meta">· ${esc(log.targetType)} #${esc(log.targetId)}</span>` : ""}</div><time class="log-meta">${formatDate(log.createdAt)}</time></article>`,
+              `<article class="log-row"><div><div class="log-action">${esc(actionLabels[log.action] || log.action)}</div><div class="log-meta">#${log.id}${log.statusCode ? ` · HTTP ${log.statusCode}` : ""}</div></div><div><strong>${esc(log.username)}</strong><div class="log-meta">${esc(log.ipAddress || "未知来源")}</div></div><div class="log-detail">${esc(log.detail || "—")} ${log.targetId ? `<span class="log-meta">· ${esc(log.targetType)} #${esc(log.targetId)}</span>` : ""}${log.userAgent ? `<div class="log-meta">${esc(log.userAgent)}${log.referer ? ` · 来源 ${esc(log.referer)}` : ""}</div>` : ""}</div><time class="log-meta">${formatDate(log.createdAt)}</time></article>`,
           )
           .join("");
         $("#adminLogs").innerHTML = rows
           ? `<div class="log-list">${rows}</div>`
-          : '<div class="card"><p class="muted">还没有操作日志。</p></div>';
+          : '<div class="card"><p class="muted">还没有系统日志。</p></div>';
+        $("#refreshLogs").onclick = async () => {
+          await reload();
+          showView("logs");
+          toast("日志已刷新");
+        };
       }
       function formatDate(value) {
         return value
@@ -1542,6 +1726,7 @@
       }
       function renderAll() {
         hydrateFields();
+        renderSiteIcon();
         renderRepeats();
         renderMedia();
         renderSettings();
@@ -1562,12 +1747,12 @@
           .filter(
             (item) =>
               item.published !== false &&
-              ((item.type === "video" && !item.videoUrl) ||
+              ((item.type === "video" && !item.vodFileId) ||
                 (item.type === "photo" && !item.externalUrl)),
           )
           .map(
             (item) =>
-              `${item.title || "未命名作品"}缺少${item.type === "video" ? "视频地址" : "外部链接"}`,
+              `${item.title || "未命名作品"}缺少${item.type === "video" ? "腾讯云 VOD FileID" : "外部链接"}`,
           );
       }
       async function save() {
@@ -1606,17 +1791,32 @@
           toast(e.message);
         }
       }
-      async function uploadFile(file) {
+      async function uploadFile(file, forSiteIcon = false) {
         if (!file) return;
         const form = new FormData();
         form.append("image", file);
         $("#uploadStatus").textContent = "正在上传并优化…";
         try {
           if (dirty) await save();
-          await request("/api/admin/media", { method: "POST", body: form });
+          const uploaded = await request("/api/admin/media", {
+            method: "POST",
+            body: form,
+          });
           await reload();
-          showView("media");
-          toast("图片上传完成");
+          if (forSiteIcon && iconEligible(uploaded)) {
+            content.siteIcon.mediaId = uploaded.id;
+            markDirty();
+            renderAll();
+            showView("seo");
+            toast("图标已上传并选中，记得保存草稿");
+          } else {
+            showView("media");
+            toast(
+              forSiteIcon
+                ? "图片已上传，但需要正方形且不小于 512×512 才能设为图标"
+                : "图片上传完成",
+            );
+          }
         } catch (e) {
           toast(e.message);
         } finally {
@@ -1669,6 +1869,16 @@
       $("#previewSide").onclick = preview;
       $("#uploadChoose").onclick = () => $("#fileInput").click();
       $("#fileInput").onchange = (e) => uploadFile(e.target.files[0]);
+      $("#chooseSiteIcon").onclick = () => beginPicker("siteIcon.mediaId");
+      $("#uploadSiteIcon").onclick = () => $("#siteIconFile").click();
+      $("#siteIconFile").onchange = (e) =>
+        uploadFile(e.target.files[0], true);
+      $("#clearSiteIcon").onclick = () => {
+        content.siteIcon.mediaId = 0;
+        markDirty();
+        renderSiteIcon();
+        toast("已恢复默认图标，记得保存草稿");
+      };
       $("#cancelPicker").onclick = () => {
         picker = null;
         $("#pickerNotice").classList.add("hidden");

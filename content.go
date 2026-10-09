@@ -15,8 +15,6 @@ type object = map[string]any
 
 var defaultContent object
 
-var legacyVideoURLs = map[string]string{}
-
 func parseObject(data []byte) object {
 	var v object
 	if json.Unmarshal(data, &v) != nil || v == nil {
@@ -55,7 +53,7 @@ func boolValue(v any, fallback bool) bool {
 
 func normalizeContent(input object) object {
 	result := cloneObject(defaultContent)
-	for _, key := range []string{"profile", "hero", "footer", "sections", "seo"} {
+	for _, key := range []string{"profile", "hero", "footer", "sections", "seo", "siteIcon"} {
 		if in := asObject(input[key]); in != nil {
 			out := asObject(result[key])
 			for k, v := range in {
@@ -112,16 +110,11 @@ func normalizeContent(input object) object {
 				item["externalUrl"] = ""
 			}
 		}
-		if _, ok := item["videoUrl"]; !ok || item["videoUrl"] == nil {
-			url := ""
-			if typeName == "video" {
-				url = legacyVideoURLs[stringValue(item["title"])]
-				if url == "" && strings.Contains(strings.ToLower(stringValue(item["link"])), ".mp4") {
-					url = stringValue(item["link"])
-				}
-			}
-			item["videoUrl"] = url
+		if _, ok := item["vodFileId"]; !ok || item["vodFileId"] == nil {
+			item["vodFileId"] = ""
 		}
+		item["vodFileId"] = strings.TrimSpace(stringValue(item["vodFileId"]))
+		delete(item, "videoUrl")
 		delete(item, "link")
 	}
 	experiences := asArray(result["experiences"])
@@ -162,7 +155,46 @@ func normalizeContent(input object) object {
 		}
 		delete(item, "period")
 	}
+	for _, key := range []string{"experiences", "caseStudies"} {
+		for _, raw := range asArray(result[key]) {
+			item := asObject(raw)
+			if item == nil {
+				continue
+			}
+			if value, ok := item["detailsMarkdown"]; !ok || value == nil {
+				lines := make([]string, 0)
+				for _, detail := range asArray(item["details"]) {
+					if line := strings.TrimSpace(fmt.Sprint(detail)); line != "" {
+						lines = append(lines, "- "+line)
+					}
+				}
+				item["detailsMarkdown"] = strings.Join(lines, "\n")
+			}
+			item["detailsMarkdown"] = stringValue(item["detailsMarkdown"])
+			delete(item, "details")
+		}
+	}
 	return result
+}
+
+func siteIconMediaID(content object) int64 {
+	icon := asObject(content["siteIcon"])
+	if icon == nil {
+		return 0
+	}
+	switch value := icon["mediaId"].(type) {
+	case float64:
+		return int64(value)
+	case int64:
+		return value
+	case int:
+		return int64(value)
+	case json.Number:
+		id, _ := value.Int64()
+		return id
+	default:
+		return 0
+	}
 }
 
 func fallbackString(v, fallback string) string {
@@ -222,8 +254,8 @@ func projectValidationIssues(content object) []string {
 			continue
 		}
 		typeName := stringValue(item["type"])
-		if typeName == "video" && stringValue(item["videoUrl"]) == "" {
-			issues = append(issues, fallbackString(stringValue(item["title"]), "未命名作品")+"缺少视频地址")
+		if typeName == "video" && stringValue(item["vodFileId"]) == "" {
+			issues = append(issues, fallbackString(stringValue(item["title"]), "未命名作品")+"缺少腾讯云 VOD FileID")
 		}
 		if typeName == "photo" && stringValue(item["externalUrl"]) == "" {
 			issues = append(issues, fallbackString(stringValue(item["title"]), "未命名作品")+"缺少外部链接")

@@ -19,7 +19,24 @@ services:
       TENCENT_COS_SECRET_KEY: ""
       TENCENT_COS_BUCKET: ""
       TENCENT_COS_REGION: "ap-guangzhou"
+      # 可选：COS 已绑定的自定义源站/CDN 域名，可填写 cdn.example.com 或 https://cdn.example.com。
+      TENCENT_COS_CUSTOM_DOMAIN: ""
+      # 私有读 COS 的下载签名有效期，支持 15m、1h 等 Go duration 格式。
+      TENCENT_COS_SIGNED_URL_TTL: "1h"
+      # 旧变量，保留兼容；设置 CUSTOM_DOMAIN 后优先使用新变量。
       TENCENT_COS_CDN_URL: ""
+
+      # 腾讯云点播 VOD：AppID 和播放密钥来自默认分发配置，License URL 需绑定站点域名。
+      TENCENT_VOD_APP_ID: ""
+      TENCENT_VOD_PLAYBACK_KEY: ""
+      TENCENT_VOD_LICENSE_URL: ""
+      # 播放器签名有效期，支持 10m、1h 等 Go duration 格式，范围 1m–24h。
+      TENCENT_VOD_SIGNATURE_TTL: "10m"
+
+      # 使用 1Panel/Nginx/Caddy 反向代理时开启，用于记录访客真实 IP。
+      TRUST_PROXY: "false"
+      ACCESS_LOG_STATIC: "false"
+      ACCESS_LOG_HEALTH: "false"
     ports:
       - "8787:8787"
     volumes:
